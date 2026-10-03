@@ -66,10 +66,6 @@ import kotlin.coroutines.resume
 class BrowserEngine private constructor(
     private val appContext: Context,
 ) {
-    companion object {
-        fun create(context: Context): BrowserEngine =
-            BrowserEngine(context.applicationContext)
-    }
 
     // ───────── 状态机（显式握手人工接管） ─────────
     enum class BrowserSessionState {
@@ -1050,6 +1046,10 @@ class BrowserEngine private constructor(
     }
 
     companion object {
+        /** 工厂入口（去 Hilt：单例语义见 [com.apex.browser.engine.di.BrowserEngineFactory]） */
+        fun create(context: Context): BrowserEngine =
+            BrowserEngine(context.applicationContext)
+
         private const val MAX_HISTORY = 100
         /** 导航次数阈值：超过后下次 navigate 前重建 WebView（P2 #15） */
         private const val MAX_NAVIGATIONS_BEFORE_REBUILD = 50
