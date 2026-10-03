@@ -1,0 +1,271 @@
+<!DOCTYPE HTML>
+<!-- NewPage -->
+<html lang="en"><head>
+    <title>Package com.apex.browser.chrome.bridge </title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="dc.created" content="2020-03-25">
+    <link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+    <link rel="stylesheet" type="text/css" href="../../../../../dokka-javadoc-stylesheet.css" title="Style">
+    <link rel="stylesheet" type="text/css" href="../../../../../jquery/jquery-ui.css" title="Style">
+    <script type="text/javascript" src="../../../../../jquery/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="../../../../../jquery/jquery-migrate-3.0.1.js"></script>
+    <script type="text/javascript" src="../../../../../jquery/jquery-ui.js"></script>
+
+    <script type="text/javascript" src="../../../../../search.js"></script>
+    <script async type="text/javascript" src="../../../../../module-search-index.js"></script>
+    <script async type="text/javascript" src="../../../../../package-search-index.js"></script>
+    <script async type="text/javascript" src="../../../../../type-search-index.js"></script>
+    <script async type="text/javascript" src="../../../../../member-search-index.js"></script>
+    <script async type="text/javascript" src="../../../../../tag-search-index.js"></script>
+</head><body>
+<script type="text/javascript">
+var pathtoroot = "../../../../../";
+</script>
+<noscript>
+    <div>JavaScript is disabled on your browser.</div>
+</noscript><header role="banner">
+    <nav role="navigation">
+        <div class="fixedNav">
+            <!-- ========= START OF TOP NAVBAR ======= -->
+            <div class="topNav"><a id="navbar.top">
+                <!--   -->
+            </a>
+                <div class="skipNav"><a href="#skip.navbar.top" title="Skip navigation links">Skip navigation links</a>
+                </div>
+                <a id="navbar.top.firstrow">
+                    <!--   -->
+                </a>
+                <ul class="navList" title="Navigation">
+    <li><a href="../../../../../index.html">Overview</a></li>
+    
+    <li class="navBarCell1Rev">Package</li>
+    
+    <li>Class</li>
+    
+    <li><a href="package-tree.html">Tree</a></li>
+    
+    <li><a href="../../../../../deprecated.html">Deprecated</a></li>
+    <li><a href="../../../../../index-files/index-1.html">Index</a></li>
+    <li>Help</li>
+</ul></div>
+            <div class="subNav">
+<ul class="navList" id="allclasses_navbar_top" style="display: block;">
+    <li><a href="../../../../../allclasses.html">All&nbsp;Classes</a></li>
+</ul>
+
+<ul class="navListSearch">
+<li><label for="search">SEARCH:</label>
+<input type="text" id="search" value="search" class="ui-autocomplete-input" autocomplete="off" placeholder="Search">
+<input type="reset" id="reset" value="reset">
+</li>
+</ul>
+<div>
+<script type="text/javascript"><!--
+  allClassesLink = document.getElementById("allclasses_navbar_top");
+  if(window==top) {
+    allClassesLink.style.display = "block";
+  }
+  else {
+    allClassesLink.style.display = "none";
+  }
+  //-->
+</script>
+<noscript>
+<div>JavaScript is disabled on your browser.</div>
+</noscript>
+</div>
+<a id="skip.navbar.top">
+<!--   -->
+</a></div><!-- ========= END OF TOP NAVBAR ========= -->
+        </div>
+        <div class="navPadding">&nbsp;</div>
+        <script type="text/javascript"><!--
+        $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
+        //-->
+        </script>
+    </nav>
+</header>
+<main role="main">
+    <div class="header">
+        <h1 title="Package" class="title">Package com.apex.browser.chrome.bridge </h1>
+    </div>
+        <div class="header">
+            <div class="subtitle">
+                <div class="block"></div>
+            </div>
+            <p>See: <a href="#overview_description">Description</a></p>
+        </div>
+    <div class="contentContainer">
+        
+            <ul class="blockList">
+                
+                <li class="blockList">
+                    
+                    
+                    
+                    
+                    
+    <div class="typeSummary">
+
+<table>
+<caption><span>Class Summary</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Class</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=AgentDialogPolicy.html>AgentDialogPolicy</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=ApexChromeWiring.html>ApexChromeWiring</a></th><td class="colLast">ApexChromeWiring —— 把通用 <a href=NeonChromeWiring.html>NeonChromeWiring</a> 接到本项目 BrowserEngine 的真实接线器。职责（全部收敛在这里，引擎与 chrome UI 保持互不感知）：<ul><li><p>TabOperations 六行直通：chrome 标签命令 → 引擎 newTab/switchTab/closeTab；</p></li><li><p>链式接管：活动 WebView 的 client 链式包一层——引擎自动化回调零破坏，     JS 弹窗/网页权限/下载/进度/标题/查找全部导入 chrome 层；</p></li><li><p>人机双通道弹窗：WAITING_HUMAN（浮窗开着）→ 人裁决；     无人值守（AGENT_DRIVING/HIDDEN）→ <a href=AgentDialogPolicy.html>AgentDialogPolicy</a> 安全默认     （ALERT 自动确认 / CONFIRM 默认拒绝 / PROMPT 不接管按取消回放）；</p></li><li><p>无人值守权限：非 WAITING_HUMAN 时网页权限一律安全拒绝     （对齐引擎旧 onPermissionRequest 的 deny 语义，但不打断状态机）；</p></li><li><p>上下文回写：弹窗/下载事件回写 engine.lastDialog / lastDownload，     Agent 侧 snapshot 注入与 browser_download_list 工具语义保持不变；</p></li><li><p>状态联动：订阅引擎 BrowserUiCallback，会话状态变化即 resync（浮窗展开、     Agent 开新标签、渲染进程重建后，chrome 数据源自动对齐引擎实况）。</p></li></ul>用法（BrowserOverlay 内）：<pre><code>val gateway = wiring.gateway      // 交给 BrowserChrome(gateway = ...)
+wiring.onActiveWebViewChanged = { view -&gt; rebindWebView(view) }</code></pre>库化改造：去 Hilt —— 单例语义由 <a href=ApexChromeWiringFactory.html>ApexChromeWiringFactory</a> 提供（F1：库不依赖 DI 框架）。</td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=BrowserEngineGatewayAdapter.html>BrowserEngineGatewayAdapter</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=ChainWebViewClient.html>ChainWebViewClient</a></th><td class="colLast"></td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=ChainWebChromeClient.html>ChainWebChromeClient</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=ChainFindListener.html>ChainFindListener</a></th><td class="colLast">页内查找结果回填（WebView 的 FindListener 不带回 view，这里捕获之用于门控）。</td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=DialogRequestRouter.html>DialogRequestRouter</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=ChromeWebChromeClient.html>ChromeWebChromeClient</a></th><td class="colLast"></td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=ChromeDownloadManager.Rec.html>Rec</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=ChromeDownloadManager.html>ChromeDownloadManager</a></th><td class="colLast"></td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=NeonUserAgent.html>NeonUserAgent</a></th><td class="colLast">桌面/移动 UA 策略。mobile 传 null 表示用 WebView 缺省 UA（首次 bind 时自动捕获）。</td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=NeonChromeWiring.html>NeonChromeWiring</a></th><td class="colLast"></td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=InMemoryPermissionGrantStore.html>InMemoryPermissionGrantStore</a></th><td class="colLast">线程安全的内存实现：JVM 单测与「不持久化」场景的缺省值。</td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=SharedPreferencesGrantStore.html>SharedPreferencesGrantStore</a></th><td class="colLast"></td></tr>
+</tbody>
+</table>
+
+    </div>
+
+                </li>
+                
+                <li class="blockList">
+                    
+                    
+                    
+                    
+                    
+    <div class="typeSummary">
+
+<table>
+<caption><span>Object Summary</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Object</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=ApexChromeWiringFactory.html>ApexChromeWiringFactory</a></th><td class="colLast">接线器进程级单例工厂（去 Hilt 后的宿主接法，见 <a href=ApexChromeWiring.html>ApexChromeWiring</a>）。 与 com.apex.browser.engine.di.BrowserEngineFactory 同款纪律：库不依赖 DI 框架。</td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=BrowserEngineGatewayAdapter.Companion.html>Companion</a></th><td class="colLast"></td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=NeonUserAgent.Companion.html>Companion</a></th><td class="colLast"></td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=PermissionGate.html>PermissionGate</a></th><td class="colLast">记忆规则的纯函数决策面（store 为 null 时全部退化为「问用户」）。</td></tr>
+</tbody>
+</table>
+
+    </div>
+
+                </li>
+                
+                <li class="blockList">
+                    
+                    
+                    
+                    
+                    
+    <div class="typeSummary">
+
+<table>
+<caption><span>Interface Summary</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Interface</th>
+<th class="colLast" scope="col">Description</th>
+</tr>
+<tbody>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=EngineCommands.html>EngineCommands</a></th><td class="colLast">A 引擎命令外观 —— 与你现有 BrowserEngine 的方法一一对应，逐行替换方法体。</td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=PageStateSink.html>PageStateSink</a></th><td class="colLast">页面状态采集口（实现方见 NeonChromeWiring；所有回调都在主线程）。</td></tr>
+
+    <tr class="altColor"><th class="colFirst" scope="row"><a href=TabOperations.html>TabOperations</a></th><td class="colLast">引擎对标签操作的最小契约——每个方法在你们 BrowserEngine 上应是一行直通。</td></tr>
+
+    <tr class="rowColor"><th class="colFirst" scope="row"><a href=PermissionGrantStore.html>PermissionGrantStore</a></th><td class="colLast">按 origin 记忆的授权存储。实现方负责线程安全与持久化。</td></tr>
+</tbody>
+</table>
+
+    </div>
+
+                </li>
+                
+            </ul>
+        
+    </div>
+</main>
+<footer role="contentinfo">
+    <nav role="navigation">
+        <!-- ======= START OF BOTTOM NAVBAR ====== -->
+        <div class="bottomNav"><a id="navbar.bottom">
+            <!--   -->
+        </a>
+            <div class="skipNav"><a href="#skip.navbar.bottom" title="Skip navigation links">Skip navigation links</a>
+            </div>
+            <a id="navbar.bottom.firstrow">
+                <!--   -->
+            </a>
+            <ul class="navList" title="Navigation">
+    <li><a href="../../../../../index.html">Overview</a></li>
+    
+    <li class="navBarCell1Rev">Package</li>
+    
+    <li>Class</li>
+    
+    <li><a href="package-tree.html">Tree</a></li>
+    
+    <li><a href="../../../../../deprecated.html">Deprecated</a></li>
+    <li><a href="../../../../../index-files/index-1.html">Index</a></li>
+    <li>Help</li>
+</ul></div>
+        <a id="skip.navbar.bottom">
+            <!--   -->
+        </a>
+        <div class="subNav">
+<ul class="navList" id="allclasses_navbar_top" style="display: block;">
+    <li><a href="../../../../../allclasses.html">All&nbsp;Classes</a></li>
+</ul>
+<div>
+<script type="text/javascript"><!--
+  allClassesLink = document.getElementById("allclasses_navbar_top");
+  if(window==top) {
+    allClassesLink.style.display = "block";
+  }
+  else {
+    allClassesLink.style.display = "none";
+  }
+  //-->
+</script>
+<noscript>
+<div>JavaScript is disabled on your browser.</div>
+</noscript>
+</div>
+<a id="skip.navbar.top">
+<!--   -->
+</a></div><!-- ======== END OF BOTTOM NAVBAR ======= -->
+    </nav>
+</footer><ul class="ui-autocomplete ui-front ui-menu ui-widget ui-widget-content" id="ui-id-1" tabindex="0"
+    style="display: none;"></ul>
+<span role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></span>
+</body>
+</html>

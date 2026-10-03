@@ -1,6 +1,7 @@
 package com.apex.browser.engine
 
 import com.apex.browser.core.CircuitBreaker
+import com.apex.browser.core.ElementNotFoundException
 import com.apex.browser.core.CircuitOpenException
 import com.apex.browser.core.RetryPolicy
 import com.apex.browser.core.withRetry

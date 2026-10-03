@@ -1,0 +1,446 @@
+<!DOCTYPE HTML>
+<!-- NewPage -->
+<html lang="en"><head>
+    <title>B-index </title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="dc.created" content="2020-03-25">
+    <link rel="stylesheet" type="text/css" href="../stylesheet.css" title="Style">
+    <link rel="stylesheet" type="text/css" href="../dokka-javadoc-stylesheet.css" title="Style">
+    <link rel="stylesheet" type="text/css" href="../jquery/jquery-ui.css" title="Style">
+    <script type="text/javascript" src="../jquery/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="../jquery/jquery-migrate-3.0.1.js"></script>
+    <script type="text/javascript" src="../jquery/jquery-ui.js"></script>
+
+    <script type="text/javascript" src="../search.js"></script>
+    <script async type="text/javascript" src="../module-search-index.js"></script>
+    <script async type="text/javascript" src="../package-search-index.js"></script>
+    <script async type="text/javascript" src="../type-search-index.js"></script>
+    <script async type="text/javascript" src="../member-search-index.js"></script>
+    <script async type="text/javascript" src="../tag-search-index.js"></script>
+</head><body>
+<script type="text/javascript">
+var pathtoroot = "../";
+</script>
+<noscript>
+    <div>JavaScript is disabled on your browser.</div>
+</noscript><header role="banner">
+    <nav role="navigation">
+        <div class="fixedNav">
+            <!-- ========= START OF TOP NAVBAR ======= -->
+            <div class="topNav"><a id="navbar.top">
+                <!--   -->
+            </a>
+                <div class="skipNav"><a href="#skip.navbar.top" title="Skip navigation links">Skip navigation links</a>
+                </div>
+                <a id="navbar.top.firstrow">
+                    <!--   -->
+                </a>
+                <ul class="navList" title="Navigation">
+    <li><a href="../index.html">Overview</a></li>
+    
+    <li><a href="package-summary.html">Package</a></li>
+    
+    <li>Class</li>
+    
+    <li><a href="package-tree.html">Tree</a></li>
+    
+    <li><a href="../deprecated.html">Deprecated</a></li>
+    <li><a href="../index-files/index-1.html">Index</a></li>
+    <li>Help</li>
+</ul></div>
+            <div class="subNav">
+
+    <ul class="navList">
+            <li><a href="index-1.html">PREV&nbsp;LETTER</a></li>
+        
+            <li><a href="index-3.html">NEXT&nbsp;LETTER</a></li>
+        </ul>
+<ul class="navList" id="allclasses_navbar_top" style="display: block;">
+    <li><a href="../allclasses.html">All&nbsp;Classes</a></li>
+</ul>
+
+<ul class="navListSearch">
+<li><label for="search">SEARCH:</label>
+<input type="text" id="search" value="search" class="ui-autocomplete-input" autocomplete="off" placeholder="Search">
+<input type="reset" id="reset" value="reset">
+</li>
+</ul>
+<div>
+<script type="text/javascript"><!--
+  allClassesLink = document.getElementById("allclasses_navbar_top");
+  if(window==top) {
+    allClassesLink.style.display = "block";
+  }
+  else {
+    allClassesLink.style.display = "none";
+  }
+  //-->
+</script>
+<noscript>
+<div>JavaScript is disabled on your browser.</div>
+</noscript>
+</div>
+<a id="skip.navbar.top">
+<!--   -->
+</a></div><!-- ========= END OF TOP NAVBAR ========= -->
+        </div>
+        <div class="navPadding">&nbsp;</div>
+        <script type="text/javascript"><!--
+        $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
+        //-->
+        </script>
+    </nav>
+</header>
+
+<main role="main">
+    <div class="contentContainer">
+        
+            <a href="index-1.html">A</a>&nbsp;
+        
+            <a href="index-2.html">B</a>&nbsp;
+        
+            <a href="index-3.html">C</a>&nbsp;
+        
+            <a href="index-4.html">D</a>&nbsp;
+        
+            <a href="index-5.html">E</a>&nbsp;
+        
+            <a href="index-6.html">F</a>&nbsp;
+        
+            <a href="index-7.html">G</a>&nbsp;
+        
+            <a href="index-8.html">H</a>&nbsp;
+        
+            <a href="index-9.html">I</a>&nbsp;
+        
+            <a href="index-10.html">L</a>&nbsp;
+        
+            <a href="index-11.html">N</a>&nbsp;
+        
+            <a href="index-12.html">O</a>&nbsp;
+        
+            <a href="index-13.html">P</a>&nbsp;
+        
+            <a href="index-14.html">R</a>&nbsp;
+        
+            <a href="index-15.html">S</a>&nbsp;
+        
+            <a href="index-16.html">T</a>&nbsp;
+        
+            <a href="index-17.html">W</a>&nbsp;
+        
+        <h2 class="title">B</h2>
+        <dl>
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.html">BrowserEngine</a>
+                
+                </span> - class in com.apex.browser.engine
+                
+
+            </dt>
+            <dd>内置 WebView 浏览器引擎（对标 Operit 的 BrowserAgent + TabManager + HistoryManager）。2026 裁决最终形态（综合 Qwen 评审 P0 缺口）：<ul><li><p>单例常驻，由宿主 Service 持有（BrowserEngineFactory），后台即可驱动网页自动化（不依赖前台 Activity）。</p></li><li><p>稳定 Ref：语义哈希 <code>data-apex-hash</code>（"r_xxx"），抗 SPA 局部刷新错位。</p></li><li><p>物理触摸注入：点击经 DOM 定位 → 换算 WebView 屏幕坐标 → <a href=https://developer.android.com/reference/kotlin/android/webkit/WebView.html#dispatchtouchevent>WebView.dispatchTouchEvent</a>， 绕过 <code>isTrusted</code> 校验与 JS 事件委托陷阱（替代旧 <code>el.click()</code>）。</p></li><li><p>显式握手状态机：<a href=../com/apex/browser/engine/BrowserEngine.BrowserSessionState.html>BrowserSessionState</a> 驱动人工接管，WAITING_HUMAN 期间所有自动化工具被锁。</p></li><li><p>P0 缺口补齐：页面加载等待(#1)、动作后验证(#2)、JS 弹窗处理(#3)、渲染进程崩溃恢复(#4)、 动作空间补全 select/toggle(#5)、Cookie 持久化(#6)。</p></li></ul>库化改造（自宿主 app 抽出为 apex-browser-kit）：去 Hilt —— 本库不依赖任何 DI 框架，单例语义由 BrowserEngineFactory 提供；宿主如用 Hilt 在自己的 Module 里 provide 即可（见仓库 README「消费方式」一节）。</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.BrowserSessionState.html">BrowserEngine.BrowserSessionState</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.BrowserUiCallback.html">BrowserEngine.BrowserUiCallback</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>可视层（浮窗）订阅状态变更，用于自动展开/收起与刷新控制条</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.Companion.html">BrowserEngine.Companion</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.DownloadRecord.html">BrowserEngine.DownloadRecord</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>最近一次下载记录（#14），供 browser_download_list 读取</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.HandoffLockedException.html">BrowserEngine.HandoffLockedException</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>Agent 工具在 WAITING_HUMAN 期间被调用时抛出，转化为友好的 SYSTEM_LOCKED 提示</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.NavResult.html">BrowserEngine.NavResult</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.PageTypeInfo.html">BrowserEngine.PageTypeInfo</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd><a href=../com/apex/browser/engine/BrowserEngine.html#pageType()>pageType</a> 的推断结果。</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.PostActionState.html">BrowserEngine.PostActionState</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.PostActionState.Companion.html">BrowserEngine.PostActionState.Companion</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.PostActionState.html>BrowserEngine.PostActionState</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.ScrollResult.html">BrowserEngine.ScrollResult</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.Tab.html">BrowserEngine.Tab</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserEngine.WaitOutcome.html">BrowserEngine.WaitOutcome</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserEngine.html>BrowserEngine</a>
+                
+
+            </dt>
+            <dd><a href=../com/apex/browser/engine/BrowserEngine.html#waitForCondition(String,String,Long,Long)>waitForCondition</a> 的结果。</dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/di/BrowserEngineFactory.html">BrowserEngineFactory</a>
+                
+                </span> - class in com.apex.browser.engine.di
+                
+
+            </dt>
+            <dd>引擎进程级单例工厂（库化去 Hilt 的替代方案，见 plan 阶段 B2 改造 1）。本库不依赖任何 DI 框架（F1：Hilt + Android Library 组合会强绑下游宿主）， 单例语义由本 object 提供。宿主的两种接法：<ul><li><p>手动：<code>val engine = BrowserEngineFactory.get(context)</code></p></li><li><p>Hilt（宿主自己的 Module，库无感知）：</p></li></ul><pre><code>@Module
+@InstallIn(SingletonComponent::class)
+object BrowserModule {
+    @Provides @Singleton
+    fun provideBrowserEngine(@ApplicationContext ctx: Context): BrowserEngine =
+        BrowserEngineFactory.get(ctx)
+}</code></pre></dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserTracer.html">BrowserTracer</a>
+                
+                </span> - class in com.apex.browser.engine
+                
+
+            </dt>
+            <dd>浏览器操作可观测性记录器（P1 #9）。Agent 行为具有非确定性：相同输入可能产生不同输出。生产环境失败时必须有完整 trace 才能定位。 本记录器在内存中维护一个固定容量的环形缓冲（默认 100 条），记录每次工具调用的 输入/输出/耗时/WebView 状态。Agent 可用 browser_debug_dump 导出最近 N 条， 用 browser_context_summary 生成压缩的进度摘要（P1 #8 轻量版）。设计取舍：<ul><li><p>仅内存缓冲，不落盘、不接 OpenTelemetry（避免增加包体与后台依赖）。</p></li><li><p>只保留「动作 + 结果摘要 + URL + 时间戳」，不存完整 DOM（省内存）。</p></li></ul></dd>
+
+        
+            <dt>
+                
+                <span class="memberNameLink">
+                
+                    <a href="../com/apex/browser/engine/BrowserTracer.Entry.html">BrowserTracer.Entry</a>
+                
+                </span> - class in com.apex.browser.engine.<a href=../com/apex/browser/engine/BrowserTracer.html>BrowserTracer</a>
+                
+
+            </dt>
+            <dd>&nbsp;</dd>
+
+        
+        </dl>
+        
+            <a href="index-1.html">A</a>&nbsp;
+        
+            <a href="index-2.html">B</a>&nbsp;
+        
+            <a href="index-3.html">C</a>&nbsp;
+        
+            <a href="index-4.html">D</a>&nbsp;
+        
+            <a href="index-5.html">E</a>&nbsp;
+        
+            <a href="index-6.html">F</a>&nbsp;
+        
+            <a href="index-7.html">G</a>&nbsp;
+        
+            <a href="index-8.html">H</a>&nbsp;
+        
+            <a href="index-9.html">I</a>&nbsp;
+        
+            <a href="index-10.html">L</a>&nbsp;
+        
+            <a href="index-11.html">N</a>&nbsp;
+        
+            <a href="index-12.html">O</a>&nbsp;
+        
+            <a href="index-13.html">P</a>&nbsp;
+        
+            <a href="index-14.html">R</a>&nbsp;
+        
+            <a href="index-15.html">S</a>&nbsp;
+        
+            <a href="index-16.html">T</a>&nbsp;
+        
+            <a href="index-17.html">W</a>&nbsp;
+        
+    </div>
+</main><footer role="contentinfo">
+    <nav role="navigation">
+        <!-- ======= START OF BOTTOM NAVBAR ====== -->
+        <div class="bottomNav"><a id="navbar.bottom">
+            <!--   -->
+        </a>
+            <div class="skipNav"><a href="#skip.navbar.bottom" title="Skip navigation links">Skip navigation links</a>
+            </div>
+            <a id="navbar.bottom.firstrow">
+                <!--   -->
+            </a>
+            <ul class="navList" title="Navigation">
+    <li><a href="../index.html">Overview</a></li>
+    
+    <li><a href="package-summary.html">Package</a></li>
+    
+    <li>Class</li>
+    
+    <li><a href="package-tree.html">Tree</a></li>
+    
+    <li><a href="../deprecated.html">Deprecated</a></li>
+    <li><a href="../index-files/index-1.html">Index</a></li>
+    <li>Help</li>
+</ul></div>
+        <a id="skip.navbar.bottom">
+            <!--   -->
+        </a>
+        <div class="subNav">
+
+    <ul class="navList">
+            <li><a href="index-1.html">PREV&nbsp;LETTER</a></li>
+        
+            <li><a href="index-3.html">NEXT&nbsp;LETTER</a></li>
+        </ul>
+<ul class="navList" id="allclasses_navbar_top" style="display: block;">
+    <li><a href="../allclasses.html">All&nbsp;Classes</a></li>
+</ul>
+<div>
+<script type="text/javascript"><!--
+  allClassesLink = document.getElementById("allclasses_navbar_top");
+  if(window==top) {
+    allClassesLink.style.display = "block";
+  }
+  else {
+    allClassesLink.style.display = "none";
+  }
+  //-->
+</script>
+<noscript>
+<div>JavaScript is disabled on your browser.</div>
+</noscript>
+</div>
+<a id="skip.navbar.top">
+<!--   -->
+</a></div><!-- ======== END OF BOTTOM NAVBAR ======= -->
+    </nav>
+</footer><ul class="ui-autocomplete ui-front ui-menu ui-widget ui-widget-content" id="ui-id-1" tabindex="0"
+    style="display: none;"></ul>
+<span role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></span>
+</body>
+</html>

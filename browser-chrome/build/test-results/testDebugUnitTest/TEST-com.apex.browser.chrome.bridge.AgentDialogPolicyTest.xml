@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-03T01:21:18" hostname="c-6ac0339e-14810412-d2f98ce006e4" time="0.025">
+  <properties/>
+  <testcase name="CONFIRM 默认安全拒绝" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.004"/>
+  <testcase name="ALERT 自动确认并返回接管" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.001"/>
+  <testcase name="关闭 ALERT 自动确认则不接管" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.002"/>
+  <testcase name="白名单站点的 CONFIRM 自动确认" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.001"/>
+  <testcase name="白名单外站点不受影响" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.001"/>
+  <testcase name="无 scope 时同步回放" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.001"/>
+  <testcase name="onDecision 审计钩子被调用" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.005"/>
+  <testcase name="策略可直接赋给 agentDecider 函数类型" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.003"/>
+  <testcase name="PROMPT 无委托不接管" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.001"/>
+  <testcase name="PROMPT 有委托时按委托结果回放" classname="com.apex.browser.chrome.bridge.AgentDialogPolicyTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

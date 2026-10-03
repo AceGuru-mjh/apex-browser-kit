@@ -1,0 +1,195 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.apex.browser",
+    "module": "browser-chrome",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.10"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "com.apex.browser",
+          "module": "browser-engine",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.21"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "browser-chrome-1.0.0.aar",
+          "url": "browser-chrome-1.0.0.aar",
+          "size": 560311,
+          "sha512": "c7e3b7d906b114512082b81f1bcd93994e668169c0d1481aab4a420fb875289cc94c0f04270e62981446def732d23c98678a221c742dd9dab4da61041e7b7ea9",
+          "sha256": "69fa9a7d4adf3950a619016d43588c9185ac7f48f2815dc2162d651a4724d99c",
+          "sha1": "540fac476dced00470c932bbf9ad42008fbbb826",
+          "md5": "a675fdbd776496887da444cf418de335"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.compose",
+          "module": "compose-bom",
+          "version": {
+            "requires": "2024.12.01"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui"
+        },
+        {
+          "group": "androidx.compose.foundation",
+          "module": "foundation"
+        },
+        {
+          "group": "androidx.compose.material3",
+          "module": "material3"
+        },
+        {
+          "group": "androidx.compose.material",
+          "module": "material-icons-extended"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-tooling-preview"
+        },
+        {
+          "group": "androidx.activity",
+          "module": "activity-compose",
+          "version": {
+            "requires": "1.9.3"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-runtime-compose",
+          "version": {
+            "requires": "2.8.7"
+          }
+        },
+        {
+          "group": "androidx.lifecycle",
+          "module": "lifecycle-viewmodel-compose",
+          "version": {
+            "requires": "2.8.7"
+          }
+        },
+        {
+          "group": "androidx.savedstate",
+          "module": "savedstate",
+          "version": {
+            "requires": "1.2.1"
+          }
+        },
+        {
+          "group": "androidx.core",
+          "module": "core-ktx",
+          "version": {
+            "requires": "1.15.0"
+          }
+        },
+        {
+          "group": "com.apex.browser",
+          "module": "browser-engine",
+          "version": {
+            "requires": "1.0.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.21"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "browser-chrome-1.0.0.aar",
+          "url": "browser-chrome-1.0.0.aar",
+          "size": 560311,
+          "sha512": "c7e3b7d906b114512082b81f1bcd93994e668169c0d1481aab4a420fb875289cc94c0f04270e62981446def732d23c98678a221c742dd9dab4da61041e7b7ea9",
+          "sha256": "69fa9a7d4adf3950a619016d43588c9185ac7f48f2815dc2162d651a4724d99c",
+          "sha1": "540fac476dced00470c932bbf9ad42008fbbb826",
+          "md5": "a675fdbd776496887da444cf418de335"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "browser-chrome-1.0.0-sources.jar",
+          "url": "browser-chrome-1.0.0-sources.jar",
+          "size": 72735,
+          "sha512": "7b37d8bd99d5ed17196d6a0a9bbcd33070c82d80cc83954b4c3d00b072eebd7ef5cf5a2c8b42887e159cd8748bbdf34672bf3374bdbebf5d9676c2fd6fc2020d",
+          "sha256": "66c27f2ae2c30c20af3f0bd1b7385032154b563490aee6ca85af290c422456b9",
+          "sha1": "52522b1b0348bf1cca7af20d06754f55b33944fd",
+          "md5": "7e9803753cb08171784d9107897da480"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseJavaDocPublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "browser-chrome-1.0.0-javadoc.jar",
+          "url": "browser-chrome-1.0.0-javadoc.jar",
+          "size": 597931,
+          "sha512": "386c1201fa22518db5563702621a9e6d7b5d3fe8bc831ab0728e86b42d50e2221305f0e915b66411da0ec78c114da4f4f723ac71b2a4a3d9f1f7f62c4f338356",
+          "sha256": "5a813fbe01db3cde5df533be26c24160d39bedc9e2ad10796e02da7b7f6689ce",
+          "sha1": "9518e94d3c1be381ad1960df1ade7d6635e16fac",
+          "md5": "098c12a8e03e29aec1bfa5b3010a936c"
+        }
+      ]
+    }
+  ]
+}

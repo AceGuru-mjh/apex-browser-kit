@@ -1,0 +1,18 @@
+$dokka.format:javadoc-v1
+$dokka.linkExtension:html
+$dokka.location:com.apex.browser.engine/BrowserEngine.BrowserSessionState///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.BrowserSessionState.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.BrowserUiCallback///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.BrowserUiCallback.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.Companion///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.Companion.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.DownloadRecord///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.DownloadRecord.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.HandoffLockedException///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.HandoffLockedException.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.NavResult///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.NavResult.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.PageTypeInfo///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.PageTypeInfo.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.PostActionState.Companion///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.PostActionState.Companion.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.PostActionState///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.PostActionState.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.ScrollResult///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.ScrollResult.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.Tab///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.Tab.html
+$dokka.location:com.apex.browser.engine/BrowserEngine.WaitOutcome///PointingToDeclaration/com/apex/browser/engine/BrowserEngine.WaitOutcome.html
+$dokka.location:com.apex.browser.engine/BrowserTracer.Entry///PointingToDeclaration/com/apex/browser/engine/BrowserTracer.Entry.html
+com.apex.browser.engine
+com.apex.browser.engine.di
+

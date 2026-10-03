@@ -1,0 +1,102 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.apex.browser.engine.browser-engine-release-8:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/94f5d5015e76ce6a20a4f1f12867a656/transformed/lifecycle-runtime-release/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "42",
+                        "endOffsets": "93"
+                    }
+                },
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/56a04b92995c251efcba8c506e2cabb9/transformed/savedstate-1.2.1/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "53",
+                        "endOffsets": "104"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "98",
+                        "endColumns": "53",
+                        "endOffsets": "147"
+                    }
+                },
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/14cbace295af7bcf606b443e5fff7006/transformed/startup-runtime-1.1.1/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "82",
+                        "endOffsets": "133"
+                    },
+                    "to": {
+                        "startLines": "4",
+                        "startColumns": "4",
+                        "startOffsets": "152",
+                        "endColumns": "82",
+                        "endOffsets": "230"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.apex.browser.engine.browser-engine-mergeReleaseResources-6:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/94f5d5015e76ce6a20a4f1f12867a656/transformed/lifecycle-runtime-release/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "42",
+                        "endOffsets": "93"
+                    }
+                },
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/56a04b92995c251efcba8c506e2cabb9/transformed/savedstate-1.2.1/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "53",
+                        "endOffsets": "104"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "98",
+                        "endColumns": "53",
+                        "endOffsets": "147"
+                    }
+                },
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/14cbace295af7bcf606b443e5fff7006/transformed/startup-runtime-1.1.1/res/values/values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "82",
+                        "endOffsets": "133"
+                    },
+                    "to": {
+                        "startLines": "4",
+                        "startColumns": "4",
+                        "startOffsets": "152",
+                        "endColumns": "82",
+                        "endOffsets": "230"
+                    }
+                }
+            ]
+        }
+    ]
+}

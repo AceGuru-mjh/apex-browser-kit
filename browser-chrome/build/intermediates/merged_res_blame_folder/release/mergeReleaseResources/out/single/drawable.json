@@ -1,0 +1,42 @@
+[
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_answer_video.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_answer_video.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/notification_bg.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/notification_bg.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_answer_low.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_answer_low.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_decline.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_decline.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/notification_bg_low.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/notification_bg_low.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/notification_tile_bg.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/notification_tile_bg.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_answer.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_answer.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_answer_video_low.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_answer_video_low.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/notification_icon_background.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/notification_icon_background.xml"
+    },
+    {
+        "merged": "com.apex.browser.chrome.browser-chrome-release-44:/drawable/ic_call_decline_low.xml",
+        "source": "com.apex.browser.chrome.browser-chrome-core-1.15.0-28:/drawable/ic_call_decline_low.xml"
+    }
+]

@@ -39,10 +39,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.apex.browser.chrome.BrowserChrome
-import com.apex.browser.chrome.ChromeConfig
-import com.apex.browser.chrome.chromePalette
 import com.apex.browser.chrome.bridge.ApexChromeWiring
+import com.apex.browser.engine.BrowserEngine
+import com.apex.browser.engine.OverlayLifecycleOwner
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

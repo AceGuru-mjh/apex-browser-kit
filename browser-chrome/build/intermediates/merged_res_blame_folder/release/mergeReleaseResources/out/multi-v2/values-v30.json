@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.apex.browser.chrome.browser-chrome-mergeReleaseResources-42:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/c397f11449c3ab0752140a854995900d/transformed/material3-release/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.apex.browser.chrome.browser-chrome-release-44:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/home/z/.gradle/caches/8.10/transforms/c397f11449c3ab0752140a854995900d/transformed/material3-release/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}

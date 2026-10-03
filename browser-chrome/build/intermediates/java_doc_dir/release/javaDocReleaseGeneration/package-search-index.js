@@ -1,0 +1,1 @@
+var packageSearchIndex = [{"l":"com.apex.browser.chrome","url":"com/apex/browser/chrome/package-summary.html"}, {"l":"com.apex.browser.chrome.bridge","url":"com/apex/browser/chrome/bridge/package-summary.html"}, {"l":"All packages","url":"index.html"}]
