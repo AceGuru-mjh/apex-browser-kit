@@ -3,6 +3,7 @@ package com.apex.browser.core
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -113,6 +114,22 @@ class DomParserTest {
         )
         assertEquals(2, snap.interactiveCount)
         assertTrue(snap.interactiveElements.all { it.tag in setOf("input", "select") })
+    }
+
+    @Test
+    fun `折叠提示不得指引不存在的工具`() {
+        // 意图：domSummary 是直接进 prompt 的模型可见文案。若提示里出现不存在的工具名，
+        // 模型会真的去调用它并拿到「工具不存在」错误，白白浪费一轮推理。
+        // 旧实现写的是 browser_dump —— 浏览器工具集里并无此工具。
+        val many = (1..50).map {
+            RawDomElement("A", "链接$it", mapOf("href" to "/$it"), Rect(0, 0, 10, 10), true, true, 5, 0)
+        }
+        val snap = DomParser.parse(rawJson(many), "u", "t", 0, 100, 100, tokenBudget = 200)
+        assertTrue(snap.domSummary.contains("折叠"))
+        assertFalse(
+            "折叠提示不得引用不存在的 browser_dump：\n${snap.domSummary}",
+            snap.domSummary.contains("browser_dump"),
+        )
     }
 
     @Test

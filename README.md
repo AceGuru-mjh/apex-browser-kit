@@ -16,6 +16,41 @@ Embedded WebView automation engine with Compose chrome UI — 从
 
 依赖方向：`chrome → engine → core`（`api` 传递，下游引 chrome 即得全套类型）。
 
+## 安全：JS 注入边界（`JsLiteral`）
+
+浏览器 Agent 天生暴露在**间接提示注入**下：网页正文可能被模型当作「元素 ref」原样回传。
+因此本库把「外部字符串 → JS 字面量」的编码收敛到唯一入口
+**`JsLiteral.string`**（`browser-core/.../core/JsLiteral.kt`），覆盖 `'` `\`、
+换行/回车/制表等控制字符，以及 U+2028 / U+2029（JSON 合法但 JS 字面量非法）。
+
+> **v1.0.1 修复**：v1.0.0 的注入点是 `private fun String.toJsonString() = "'$this'"`，
+> 零转义。实测 `ref = "+alert(document.cookie)+"` 可生成
+> `document.querySelector('[data-apex-hash='+alert(document.cookie)+']')`
+> —— **由 ref 字符串驱动的页内任意 JS 执行**。现所有注入点统一走 `JsLiteral.string`。
+
+两条必须遵守的约定：
+
+1. **新增注入点时必须用 `JsLiteral.string`**，不得自行拼接或手写转义
+   （v1.0.0 曾同时存在三套互不一致的转义，其中一套把 `ref` 按 `"` 转义却嵌在
+   单引号选择器里）。
+2. **ref 定位不经 CSS 解析**：`[data-apex-hash=<ref>]` 会让 CSS 解析器二次解析
+   ref，含引号 / 空格 / `]` 的 ref 会抛 `SyntaxError`，并一路冒泡成
+   `ElementNotFoundException` + 打开熔断器。故统一走
+   「`querySelectorAll('[data-apex-hash]')` + JS `===` 比较属性值」。
+
+## 纯逻辑下沉：页面类型分类（`PageClassifier`）
+
+`pageType` 的信号采集（`BrowserScript.PAGE_TYPE_JS`）与分类逻辑（`PageClassifier`）
+已分离。分类策略此前是 `BrowserEngine` 里的 `private` 方法、与 WebView 耦合、
+**零测试覆盖**；现下沉到零 Android 依赖的 `:browser-core`，优先级表
+（auth > video > form > article > search > list > portal > generic）
+由 `PageClassifierTest` 穷举锁定，并对外开放给任何消费方。
+
+> **v1.0.1 移除** `BrowserScript.waitForSelectorJs`：它返回 `Promise`，而
+> `evaluateJavascript` 不等待 Promise，回调恒为 `null`，导致
+> `browser_navigate(wait_for=…)` 的 `selectorFound` **永远为 false**。
+> 已由同步的 `BrowserScript.selectorPresentJs` + Kotlin 侧轮询取代。
+
 ## 兼容矩阵（F3：Compose Compiler 版本必须 ≤ 宿主）
 
 | 依赖 | 版本 |

@@ -92,30 +92,33 @@ class BrowserScriptTest {
     // ---- 物理定位：rectByRefJs 用语义哈希 ref 而非顺序序号 ----
 
     @Test
-    fun `rectByRefJs 按 data-apex-hash 定位而非顺序 ref`() {
+    fun `rectByRefJs 按 data-apex-hash 属性值精确匹配定位`() {
         val ref = "r_3k9f"
         val js = BrowserScript.rectByRefJs(ref)
-        // 意图：必须按语义哈希 ref 查询，才能抗 SPA 局部刷新错位
-        // 新契约：ref 不再拼进 CSS 选择器，而是在 JS 内与属性值严格比较
-        assertTrue(
-            "应按 data-apex-hash 属性值定位：" + js,
-            js.contains("getAttribute('data-apex-hash') === '$ref'"),
-        )
+        // 意图：必须按语义哈希 ref 精确定位，才能抗 SPA 局部刷新错位
+        assertTrue(js, js.contains("getAttribute('data-apex-hash') === __apexRef"))
+        assertTrue("ref 应进入比较用的 JS 字符串字面量", js.contains("var __apexRef = '$ref';"))
     }
 
     @Test
-    fun `rectByRefJs 把外部 ref 嵌入属性选择器定位`() {
-        // 意图：ref 来自 Agent 参数，必须被安全插值进 data-apex-hash 属性选择器
-        val ref = "r_3k9f"
-        val js = BrowserScript.rectByRefJs(ref)
-        // 新契约：ref 不再拼进 CSS 选择器，而是在 JS 内与属性值严格比较
-        assertTrue(
-            "应按 data-apex-hash 属性值定位：" + js,
-            js.contains("getAttribute('data-apex-hash') === '$ref'"),
-        )
-        // 已知限制（基础设施层防护由 WebView 沙箱兜底）：ref 直接字符串插值，
-        // 若含 `"` / `]` 可能闭合属性选择器；Agent 层传入的 ref 均来自快照注入的语义哈希，
-        // 字符集受限，实际风险低。此处仅验证正常 ref 的嵌入契约。
+    fun `ref 定位不经 CSS 选择器解析`() {
+        // 意图：若把 ref 拼进 `[data-apex-hash=<ref>]`，CSS 解析器会二次解析 ref ——
+        // 含引号/空格/`]` 的 ref 会让 querySelector 抛 SyntaxError，在无 try/catch 的
+        // rectByRefJs 路径上冒泡成 ElementNotFoundException 并打开熔断器。
+        // 因此定位必须走「取全部带标记元素 + JS 严格比较」。
+        val js = BrowserScript.rectByRefJs("r_3k9f")
+        assertFalse("不得把 ref 拼进 CSS 属性选择器", js.contains("[data-apex-hash=' +"))
+        assertTrue("应查询全部带标记元素", js.contains("querySelectorAll('[data-apex-hash]')"))
+    }
+
+    @Test
+    fun `注入型 ref 无法逃出字面量`() {
+        // 意图：ref 来自 Agent 参数，而 Agent 上下文里可能混有网页正文（间接提示注入），
+        // 因此 ref 必须在进入 JS 前被转义。旧实现 "'$this'" 零转义，此载荷可闭合字面量。
+        val payload = "x']);alert(1);//"
+        val js = BrowserScript.rectByRefJs(payload)
+        assertTrue("闭合引号必须被转义: $js", js.contains("\\'"))
+        assertFalse("不得出现未转义的闭合引号序列", js.contains("'));alert"))
     }
 
     // ---- 下拉选择：byText / byValue 两种匹配语义 ----
@@ -124,7 +127,7 @@ class BrowserScriptTest {
     fun `selectJs byValue 按 option 的 value 匹配`() {
         val js = BrowserScript.selectJs("r_abc", "cn", byText = false)
         assertTrue("按 value 匹配", js.contains("opt.value"))
-        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_abc'"))
+        assertTrue(js.contains("var __apexRef = 'r_abc';"))
         assertFalse("不应按 text 匹配", js.contains("opt.text"))
     }
 
@@ -132,6 +135,14 @@ class BrowserScriptTest {
     fun `selectJs byText 按 option 的 text 匹配`() {
         val js = BrowserScript.selectJs("r_abc", "中国", byText = true)
         assertTrue("按 text 匹配", js.contains("opt.text"))
+    }
+
+    @Test
+    fun `selectJs 的 option 值经转义注入`() {
+        // 意图：value 是用户/Agent 提供的自由文本（如人名、地址），
+        // 含单引号时不得闭合字面量。
+        val js = BrowserScript.selectJs("r_abc", "O'Brien", byText = true)
+        assertTrue("option 值必须转义: $js", js.contains("'O\\'Brien'"))
     }
 
     // ---- 网络监控：注入后拦截 fetch / xhr 并写入日志 ----
@@ -162,13 +173,99 @@ class BrowserScriptTest {
     // ---- 等待选择器：wait_for 参数支撑 ----
 
     @Test
-    fun `waitForSelectorJs 把选择器作为 JS 字符串安全嵌入`() {
+    fun `selectorPresentJs 把选择器作为 JS 字符串安全嵌入`() {
         val sel = "a.login"
-        val js = BrowserScript.waitForSelectorJs(sel)
-        // 意图：选择器被当作字面量查询，且带轮询 + 超时兜底
+        val js = BrowserScript.selectorPresentJs(sel)
+        // 意图：选择器被当作字面量查询
         assertTrue(js.contains("document.querySelector('$sel')"))
-        assertTrue(js.contains("setInterval"))
-        assertTrue(js.contains("setTimeout"))
+    }
+
+    @Test
+    fun `selectorPresentJs 必须是同步返回而非 Promise`() {
+        // 意图：evaluateJavascript 的回调不等待 Promise —— 旧 waitForSelectorJs 返回
+        // new Promise，导致 browser_navigate 的 wait_for 永远判定为「未找到」。
+        val js = BrowserScript.selectorPresentJs(".results")
+        assertTrue("不得含 Promise", !js.contains("Promise"))
+        assertTrue("应同步返回布尔", js.contains("return !!"))
+    }
+
+    @Test
+    fun `selectorPresentJs 转义含引号的选择器`() {
+        // 真实场景：input[placeholder='搜索'] 这类带引号属性值的选择器非常常见，
+        // 旧实现零转义会把它们变成 JS 语法错误，导致 navigate 永远等不到元素。
+        val js = BrowserScript.selectorPresentJs("input[placeholder='搜索']")
+        assertTrue("选择器中的单引号必须转义: $js", js.contains("\\'搜索\\'"))
+    }
+
+    // ---- 文本输入：input/change 事件与多行文本 ----
+
+    @Test
+    fun `inputTextJs 聚焦赋值并派发 input 与 change 事件`() {
+        val js = BrowserScript.inputTextJs("r_in", "hello")
+        assertTrue("必须 focus（受控组件依赖）", js.contains("el.focus()"))
+        assertTrue("必须赋值", js.contains("el.value = 'hello'"))
+        assertTrue("必须派发 input", js.contains("new Event('input'"))
+        assertTrue("必须派发 change", js.contains("new Event('change'"))
+    }
+
+    @Test
+    fun `inputTextJs 把多行文本的换行转义而非裸写入`() {
+        // 意图：往 <textarea> 填多行是常规操作，裸换行会让整段 JS 变成语法错误，
+        // 输入静默失效（既没有报错也没有输入结果）。
+        val js = BrowserScript.inputTextJs("r_in", "第一行\n第二行")
+        assertTrue("换行必须转义: $js", js.contains("\\n"))
+        assertFalse("不得含裸换行", js.contains("第一行\n第二行"))
+    }
+
+    @Test
+    fun `inputTextJs 的 ref 走与 BrowserScript 其余函数一致的转义`() {
+        // 意图：旧实现在引擎内内联 JS 并自写了一套只处理单引号的转义，且把 ref 按
+        // 双引号转义却嵌在单引号选择器里 —— 转义与定界符错配。
+        val js = BrowserScript.inputTextJs("r_o'brien", "x")
+        assertTrue("ref 必须经统一编码: $js", js.contains("\\'"))
+        assertTrue("定位方式与其余函数一致: $js", js.contains("var __apexRef = "))
+    }
+
+    // ---- 可见文本包含 ----
+
+    @Test
+    fun `textContainsJs 检查 body 可见文本且对 innerText 缺失有回退`() {
+        val js = BrowserScript.textContainsJs("已登录")
+        assertTrue("应检查 body 文本", js.contains("document.body"))
+        assertTrue("应做包含判断", js.contains("indexOf"))
+        assertTrue("innerText 缺失时应回退 textContent", js.contains("textContent"))
+    }
+
+    @Test
+    fun `textContainsJs 转义多行被等待文本`() {
+        // 真实场景：等待「验证码错误」这类可能含换行的提示文案
+        val js = BrowserScript.textContainsJs("line1\nline2")
+        assertTrue("换行必须转义: $js", js.contains("\\n"))
+    }
+
+    // ---- 滚动与网络日志 ----
+
+    @Test
+    fun `scrollByJs 注入受限像素并同步返回`() {
+        val js = BrowserScript.scrollByJs(400)
+        assertTrue(js.contains("window.scrollBy(0, 400)"))
+        assertTrue("应同步返回 true", js.contains("return true"))
+    }
+
+    @Test
+    fun `scrollByJs 对超大位移做上限收敛`() {
+        // 意图：Agent 可能传入极大 delta（如 Int.MAX_VALUE），会让 WebView 长时间
+        // 滚动阻塞主线程。
+        val js = BrowserScript.scrollByJs(Int.MAX_VALUE)
+        assertTrue("应被收敛到上限: $js", js.contains(BrowserScript.MAX_SCROLL_PX.toString()))
+        assertFalse("不得原样写入极大值", js.contains(Int.MAX_VALUE.toString()))
+    }
+
+    @Test
+    fun `networkLogJs 截取尾部 limit 条且下界受保护`() {
+        assertTrue(BrowserScript.networkLogJs(50).contains("slice(-50)"))
+        // limit=0 时 slice(-0) == slice(0) 会返回整个数组，必须收敛到 1
+        assertTrue(BrowserScript.networkLogJs(0).contains("slice(-1)"))
     }
 
     // ---- 高亮：调试可视化 ----
@@ -176,42 +273,63 @@ class BrowserScriptTest {
     @Test
     fun `highlightJs 对目标 ref 注入 outline`() {
         val js = BrowserScript.highlightJs("r_z12", "#ff0000")
-        // 定位改为属性值比较：ref 以已转义的 JS 字符串字面量参与 ===，不再拼进 CSS 选择器
-        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_z12'"))
-        // 颜色也不再裸拼进引号字面量（同一类双重引号缺陷）
-        assertTrue(js.contains("outline='2px solid ' + '#ff0000'"))
-    }
-
-    // ═══ v1.1.0：JS 字面量转义（错误率修复的核心防线） ═══
-
-    @Test
-    fun `ref 含单引号时选择器字面量不撕裂`() {
-        // 语义哈希 ref 不含引号，但防御性转义必须就位——任何插值点被喂入
-        // 恶意/意外 ref 都不能撕裂 JS（旧实现零转义，单引号直接语法报错）
-        val js = BrowserScript.scrollIntoViewAndRectJs("r'x")
-        // 生成物里不应出现裸的 'r'x' 撕裂形态：引号必须被转义为 \'
-        assertTrue("单引号必须被转义", js.contains("\\'"))
-        assertFalse("不应残留未转义的 ref 撕裂形态", js.contains("'r'x'"))
+        assertTrue("应按 data-apex-hash 精确定位: $js", js.contains("getAttribute('data-apex-hash') === __apexRef"))
+        assertTrue("ref 应进入 JS 字符串字面量: $js", js.contains("var __apexRef = 'r_z12';"))
+        assertTrue("应逐个高亮全部匹配元素: $js", js.contains("__apexHits[i].style.outline="))
+        assertTrue("应注入 outline 样式: $js", js.contains("2px solid "))
+        assertTrue(js.contains("#ff0000"))
     }
 
     @Test
-    fun `selector 含 CSS 属性选择器引号时 waitForSelectorJs 仍合法`() {
-        // [href='login'] 是 Agent 高频形态；旧实现生成 querySelector('[href='login']') 必炸
-        val sel = "[href='login']"
-        val js = BrowserScript.waitForSelectorJs(sel)
-        assertTrue("内层引号必须被转义", js.contains("\\'"))
-        assertFalse(
-            "不应出现撕裂的选择器字面量",
-            js.contains("'$sel'") && !js.contains("\\'")
-        )
+    fun `highlightJs 的 ref 与 color 均经转义`() {
+        // 意图：旧实现 "[data-apex-hash=\"$ref\"]" 与 "outline='...$color'" 双双原样插值，
+        // 两种定界符都可被闭合。现 ref 走 refLookupJs、color 走 JsLiteral.string。
+        val js = BrowserScript.highlightJs("x'];alert(1);//", "red'; alert(1); //")
+        assertTrue("ref 中的单引号必须转义: $js", js.contains("\\'"))
+        assertTrue("color 中的单引号必须转义: $js", js.contains("red\\'; alert(1); //"))
+        assertFalse("不得出现未转义的闭合引号序列", js.contains("'));alert"))
+    }
+
+    // ---- 可见性剪枝：不得误杀 position:fixed 元素 ----
+
+    @Test
+    fun `snapshotJs 不以 offsetParent 作为可见性判据`() {
+        // 意图：position:fixed 的可见元素其 offsetParent 恒为 null，用它判可见会
+        // 误杀吸顶导航 / 悬浮按钮 / 弹窗控件 —— 恰是现代站点最需要点击的元素。
+        val js = BrowserScript.snapshotJs()
+        assertFalse("不得依赖 offsetParent 判可见", js.contains("offsetParent"))
+        assertTrue("应基于 rect 与样式联合判定", js.contains("rect.width > 0"))
+    }
+
+    // ---- A11y 降级源：不得因 innerText 缺失而整体失败 ----
+
+    @Test
+    fun `A11Y_FALLBACK_JS 用单反斜杠空白正则`() {
+        // 意图：Kotlin 原始字符串里的 /\\\\s+/ 会产出 JS 的 /\\s+/ —— 匹配「字面反斜杠 + s」，
+        // 而非空白字符，导致降级源的文本从不折叠空白。
+        val js = BrowserScript.A11Y_FALLBACK_JS
+        assertFalse("不得含双反斜杠正则 /\\\\s+/", js.contains("\\\\s+"))
+        assertTrue("应含正确的空白正则 /\\s+/", js.contains("/\\s+/g"))
     }
 
     @Test
-    fun `selectJs 的选项值含撇号与换行不撕裂`() {
-        val js = BrowserScript.selectJs("r_1", "it's\nmulti", byText = false)
-        assertTrue(js.contains("\\'"))
-        assertTrue(js.contains("\\n"))
+    fun `A11Y_FALLBACK_JS 对 innerText 缺失有 textContent 回退`() {
+        // 意图：querySelectorAll('*') 会命中 SVG / void 元素，其 innerText 为 undefined。
+        // 旧实现对 innerText 直接调 .trim()，任一此类元素即让整个降级快照抛错返回空，
+        // 而这正是「主快照失败后的最后一道降级」——静默失效最难排查。
+        val js = BrowserScript.A11Y_FALLBACK_JS
+        assertTrue("应有 textContent 回退", js.contains("textContent"))
+        assertFalse("不得对 innerText 直接调 .trim()", js.contains("innerText.trim()"))
     }
+
+    @Test
+    fun `A11Y_FALLBACK_JS 同样写入语义哈希并保持同步`() {
+        val js = BrowserScript.A11Y_FALLBACK_JS
+        assertTrue("应写入 data-apex-hash", js.contains("setAttribute('data-apex-hash'"))
+        assertTrue("不得含 Promise", !js.contains("Promise"))
+    }
+
+    // ═══ v1.1.0 高级能力脚本（自 main 移植，断言适配 JsLiteral/refLookupJs） ═══
 
     @Test
     fun `setNativeValueJs 多行文本转义为 n 字面量`() {
@@ -240,8 +358,6 @@ class BrowserScriptTest {
         assertFalse("replace 模式不应拼接", replaceJs.contains("(cur || '') +"))
     }
 
-    // ═══ v1.1.0：新动作空间脚本的意图 ═══
-
     @Test
     fun `scrollIntoViewAndRectJs 先滚动到中央再回读矩形`() {
         val js = BrowserScript.scrollIntoViewAndRectJs("r_1")
@@ -256,7 +372,8 @@ class BrowserScriptTest {
         val js = BrowserScript.elementAtPointJs(120.5f, 300f, "r_1")
         assertTrue(js.contains("document.elementFromPoint(120.5, 300"))
         assertTrue(js.contains("isTargetOrChild"))
-        assertTrue(js.contains("target.contains(el)"))
+        // rebase 适配：命中元素改名 __apexHit（refLookupJs 占用 el 名），归属判定等价
+        assertTrue(js.contains("el.contains(__apexHit)"))
     }
 
     @Test
@@ -315,48 +432,23 @@ class BrowserScriptTest {
         assertTrue(meta.contains("canonical"))
     }
 
-    // -- ref 定位：不得把 ref 拼进 CSS 选择器（安全 + 可用性）--
+    // -- v1.1.0 防线回归：所有 ref 定位入口共享统一前置片段 --
 
     @Test
-    fun `ref 定位不得拼进 CSS 属性选择器`() {
-        // 意图：旧形态 querySelector('[data-apex-hash=${ref.toJsonString()}]') 有两个同时存在的故障：
-        //  (a) 模板自带单引号 + 转义函数又套一层单引号 -> 生成
-        //      document.querySelector('[data-apex-hash=' + 'r_3k9f' + ']') 之外的形式
-        //      document.querySelector('[data-apex-hash='r_3k9f']')，对**任何** ref 都是语法错误，
-        //      体现为 click / input / select 完全无法工作；
-        //  (b) 可注入 —— 转义虽已正确跳过引号，但注入载荷**不需要任何引号字符**即可脱离：
-        //      ref = "+alert(document.cookie)+" -> document.querySelector('[data-apex-hash='+alert(document.cookie)+']')
-        //      合法 JS，页内任意代码执行。
-        // 故改为「取全部带标记元素 -> JS 内 === 比较属性值」。
-        val js = BrowserScript.rectByRefJs("r_3k9f")
-        assertFalse(
-            "不得把 ref 拼进 CSS 属性选择器：" + js,
-            js.contains("[data-apex-hash=" + "'" + " +"),
-        )
-        assertFalse(
-            "不得保留双重引号形态：" + js,
-            js.contains("'" + "[data-apex-hash="),
-        )
-        assertTrue(
-            "应改为 querySelectorAll + 属性值比较：" + js,
-            js.contains("getAttribute(" + "'" + "data-apex-hash" + "'" + ") ==="),
-        )
-    }
-
-    @Test
-    fun `七个 ref 定位入口全部改用属性值比较`() {
+    fun `八个 ref 定位入口全部改用属性值比较`() {
         // 意图：每个靠 ref 定位的注入点都必须同步，否则修了其中几处仍留一个可注入面。
-        // 函数名由脚本从 main 的源码映射得出，与 7 个注入点一一对应。
+        // 函数名由脚本从源码映射得出，与 8 个注入点一一对应（v1.1.0 七处 + inputTextJs）。
         val jsSites = listOf(
             "rectByRefJs" to BrowserScript.rectByRefJs("r_3k9f"),
             "selectJs" to BrowserScript.selectJs("r_9z", "cn", byText = false),
             "highlightJs" to BrowserScript.highlightJs("r_hl"),
+            "inputTextJs" to BrowserScript.inputTextJs("r_it", "hi"),
             "scrollIntoViewAndRectJs" to BrowserScript.scrollIntoViewAndRectJs("r_sv"),
             "elementAtPointJs" to BrowserScript.elementAtPointJs(100f, 200f, "r_ep"),
             "setNativeValueJs" to BrowserScript.setNativeValueJs("r_nv", "hi", false),
             "hoverJs" to BrowserScript.hoverJs("r_hv"),
         )
-        assertEquals("ref 定位入口数量", 7, jsSites.size)
+        assertEquals("ref 定位入口数量", 8, jsSites.size)
         for ((name, js) in jsSites) {
             assertFalse(
                 name + " 仍把 ref 拼进 CSS 属性选择器",
@@ -374,29 +466,14 @@ class BrowserScriptTest {
     }
 
     @Test
-    fun `定位片段声明统一的 __apexHits 与 __apexFirst`() {
-        // 意图：多个注入点共用同一前置片段，变量名不能各处自定义（重名会静默抬高一个入口）。
+    fun `定位片段声明统一的 __apexHits 与 el`() {
+        // 意图：多个注入点共用同一前置片段（refLookupJs），变量名不能各处自定义
+        //（重名会静默抬高一个入口）。rebase 适配：__apexFirst 并入 el。
         val js = BrowserScript.rectByRefJs("r_3k9f")
         assertTrue(js.contains("var __apexHits = [];"))
-        assertTrue(js.contains("var __apexFirst = __apexHits.length ? __apexHits[0] : null;"))
+        assertTrue(js.contains("var el = __apexHits.length ? __apexHits[0] : null;"))
         // 循环变量必须带前缀，避免与调用方脚本里的 i / el 碰撞
         assertTrue(js.contains("__apexI"))
-    }
-
-
-    @Test
-    fun `highlightJs 的颜色不得闭合样式串`() {
-        // 意图：旧孢态 outline='2px solid $color' 与 ref 定位同类：
-        // 模板自带引号 + 变量未经转义。注入载荷不需引号字符即可脱离。
-        val js = BrowserScript.highlightJs("r_z12", "red'; alert(1); //")
-        assertFalse(
-            "不得出现未转义的模板引号：" + js,
-            js.contains("'2px solid red'"),
-        )
-        assertTrue(
-            "颜色应经转义后拼接：" + js,
-            js.contains("outline='2px solid ' + ") && js.contains("\\'"),
-        )
     }
 
     @Test
@@ -404,17 +481,21 @@ class BrowserScriptTest {
         // 意图：曾经写过 refHitsJs("ref.toJsonString()") —— Kotlin 传的是表达式的
         // *文本*，不是它的值。生成的 JS 里因此出现 `=== ref.toJsonString()`，
         // 里面的 ref 是未定义变量 -> ReferenceError，ref 定位又成了完全不可用。
-        // 本测试把这一类错误固定为不可能。
+        // 本测试把这一类错误固定为不可能（rebase 后同样防 JsLiteral.string 文本泄漏）。
         val js = BrowserScript.rectByRefJs("r_3k9f")
         assertFalse(
             "生成的 JS 里不得出现 Kotlin 表达式文本：" + js,
             js.contains("toJsonString()"),
         )
         assertFalse(
+            "生成的 JS 里不得出现 Kotlin 表达式文本：" + js,
+            js.contains("JsLiteral.string"),
+        )
+        assertFalse(
             "生成的 JS 里不得出现未定义的 Kotlin 参数名：" + js,
             js.contains("=== ref"),
         )
         // ref 必须以已转义的 JS 字符串字面量出现，而不是代码块
-        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_3k9f'"))
+        assertTrue(js.contains("var __apexRef = 'r_3k9f';"))
     }
 }
