@@ -1,9 +1,0 @@
-# browser-chrome consumer rules（宿主 release 构建自动合并）
-# chrome 接线器与 overlay：Compose 运行时经反射访问公有 API
--keep class com.apex.browser.chrome.BrowserOverlay { *; }
--keep class com.apex.browser.chrome.BrowserOverlay$* { *; }
--keep class com.apex.browser.chrome.bridge.ApexChromeWiring { *; }
--keep class com.apex.browser.chrome.bridge.ApexChromeWiring$* { *; }
--keep class com.apex.browser.chrome.bridge.NeonChromeWiring { *; }
--keep class com.apex.browser.chrome.BrowserEngineGateway { *; }
--keep class com.apex.browser.chrome.ChromeModelsKt { *; }
