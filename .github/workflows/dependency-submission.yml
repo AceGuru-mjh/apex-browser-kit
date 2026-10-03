@@ -12,10 +12,18 @@ name: Dependency Submission
 # Reference: https://github.com/gradle/actions/tree/main/dependency-submission
 
 on:
+  # push-to-main only, deliberately.
+  #
+  # Two things learned from the first run of this workflow:
+  #   1. The dependency-graph API rejects submissions on `pull_request` events
+  #      (HttpError even with `contents: write`), so a PR-triggered run is a
+  #      guaranteed red check that tells us nothing.
+  #   2. `gradle/actions/dependency-submission` has no `package-ecosystem`
+  #      input (that belongs to Dependabot configs); passing it is an
+  #      "Unexpected input(s)" warning.
+  # Matches detekt's gradle-dependency-submission.yaml, which is push-to-main too.
   push:
     branches: [main]
-  # Also submit on PRs so the graph preview reflects the branch under review.
-  pull_request:
 
 permissions:
   contents: write
@@ -42,5 +50,3 @@ jobs:
 
       - name: Submit dependency graph
         uses: gradle/actions/dependency-submission@v4
-        with:
-          package-ecosystem: gradle
