@@ -546,7 +546,9 @@ class BrowserScriptTest {
             "snapshotJs" to BrowserScript.snapshotJs(),
             "A11Y_FALLBACK_JS" to BrowserScript.A11Y_FALLBACK_JS,
         )) {
-            assertTrue("$name 应遍历父链计算 depth", js.contains("el.parentElement"))
+            // 断言 parentElement 本身而非 `el.parentElement`：JS 里的遍历变量名是
+            // 局部实现细节，写死变量名会让一次无害改名变成一次假失败。
+            assertTrue("$name 应遍历父链计算 depth", js.contains("parentElement"))
             assertTrue("$name 应为 depth 设上限避免深 DOM 拖慢脚本", js.contains("depth < 20"))
             assertFalse("$name 不得把 depth 写死 0", js.contains("depth: 0,"))
         }
