@@ -6,8 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 /**
  * 验证 DomParser 的「意图」：把浏览器抓取的原始 DOM 转成 Agent 可操作的快照，
@@ -18,17 +16,21 @@ class DomParserTest {
     private fun rawJson(elements: List<RawDomElement>): String =
         Json.encodeToString(elements)
 
-    /** 新版注入脚本的回传信封形态 {v,total,truncated,elements} */
+    /**
+     * 新版注入脚本的回传信封形态 {v,total,truncated,elements}。
+     *
+     * 直接拼字符串而非用 buildJsonObject：只需 `Json.encodeToString` 这一个已在
+     * 本文件验证可编译的 API。（`Json.encodeToJsonElement` 的 reified 形态是
+     * `kotlinx.serialization.json` 包内的**扩展函数**，漏 import 会静默解析到
+     * 双参重载 `encodeToJsonElement(serializer, value)` 而编译失败。）
+     * total 是 Int、truncated 是 Boolean，字面量插值安全。
+     */
     private fun envelopeJson(
         elements: List<RawDomElement>,
         total: Int,
         truncated: Boolean,
-    ): String = buildJsonObject {
-        put("v", 1)
-        put("total", total)
-        put("truncated", truncated)
-        put("elements", Json.encodeToJsonElement(elements))
-    }.toString()
+    ): String =
+        """{"v":1,"total":$total,"truncated":$truncated,"elements":${Json.encodeToString(elements)}}"""
 
     private fun el(
         tag: String,
