@@ -54,6 +54,15 @@ data class PageSnapshot(
     val domSummary: String,
     /** 完整可交互元素列表，供工具按 bid 精准操作 */
     val interactiveElements: List<DomElement>,
+    /**
+     * 注入脚本是否因单次抓取上限（[BrowserScript.SNAPSHOT_MAX_ELEMENTS]）而截断。
+     *
+     * 意图：不告知截断，模型会把「看到的 N 个」当成「页面全部」，据此规划后续动作
+     * 必然踩空（稠密列表页最典型）。宿主可据此决定是否滚动翻页后重抓。
+     */
+    val truncated: Boolean = false,
+    /** 页面实际匹配到的元素总数（可能大于 [interactiveCount]，差值即剪枝或截断掉的） */
+    val totalCandidateCount: Int = 0,
 )
 
 /** 从 JS 注入点拿到的原始元素（序列化自 injected JS） */
@@ -67,4 +76,20 @@ internal data class RawDomElement(
     val isInteractive: Boolean,
     val depth: Int,
     val childCount: Int,
+)
+
+/**
+ * 注入脚本的回传信封（[BrowserScript.snapshotJs] 的新版返回形态）。
+ *
+ * 元素数组之外额外携带 `total` / `truncated`，让 [DomParser] 能如实告知模型
+ * 「页面里还有更多元素」—— 否则单次抓取上限会表现为「页面就这些」。
+ *
+ * 字段名与 JS 侧字面量一一对应（`v` / `total` / `truncated` / `elements`）。
+ */
+@Serializable
+internal data class RawSnapshotEnvelope(
+    val v: Int = 1,
+    val total: Int = 0,
+    val truncated: Boolean = false,
+    val elements: List<RawDomElement> = emptyList(),
 )

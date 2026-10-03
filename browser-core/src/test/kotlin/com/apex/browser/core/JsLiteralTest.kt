@@ -96,9 +96,42 @@ class JsLiteralTest {
             "a\"]);alert(1);//",       // 双引号闭合注入
             "]' OR '1'='1",            // CSS/属性选择器风格载荷
             "混合'\"\\的\n换行\u2028行",
+            // 以下取自浏览器自动化领域常用的对抗语料（Playwright / browser-use
+            // 系的转义测试清单）：它们未必能在本库形成注入，但都是手写转义器
+            // 经典的漏网之处，进语料即可锁住「解码后内容不变」这一不变量。
+            "</script>",               // HTML 解析器层面的经典闭合序列
+            "</SCRIPT>",
+            "`",                        // 模板字符串定界符
+            "$",
+            "\${}",                    // 字面量 ${}
+            "//",
+            "/*",
+            "*/",
+            "a".repeat(4096),          // 超长输入
         )
         for (input in corpus) {
             assertRoundTrip(input)
+        }
+    }
+
+    @Test
+    fun `对抗语料在字面量内不留可闭合序列`() {
+        // 意图：整串必须是一个完整字面量 —— 内部既不能出现未转义的单引号，
+        // 也不能出现裸换行/裸回车把字面量截断。
+        val adversarial = listOf(
+            "</script>", "</SCRIPT>", "`", "$", "\${}", "//", "/*", "*/",
+            " ", "a".repeat(4096), "'", "\\", "\n",
+        )
+        for (input in adversarial) {
+            val literal = JsLiteral.string(input)
+            val body = literal.substring(1, literal.length - 1)
+            var i = 0
+            while (i < body.length) {
+                if (body[i] == '\\') { i += 2; continue }
+                assertTrue("残留未转义单引号: ${input.take(12)}", body[i] != '\'')
+                i++
+            }
+            assertTrue("残留裸换行/回车", body.none { it == '\n' || it == '\r' })
         }
     }
 

@@ -1,0 +1,38 @@
+# ============================================================================
+# Dependabot — dependency freshness for a published library.
+#
+# A library's whole value is that consumers can trust its coordinates: a stale
+# AGP/Kotlin/Compose in a published artifact silently forces version conflicts
+# on every downstream host. Keep the toolchain current.
+#
+# `gradle` covers build.gradle.kts, gradle/libs.versions.toml and the wrapper;
+# `github-actions` keeps the workflows themselves current.
+# ============================================================================
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Kotlin + Compose compiler move together — the Compose compiler plugin
+      # version IS the Kotlin version, so bumping one without the other breaks
+      # the build. Keep them in one PR.
+      kotlin:
+        patterns: ["kotlin", "compose"]
+      android-toolchain:
+        patterns: ["agp", "android*", "gradle"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"

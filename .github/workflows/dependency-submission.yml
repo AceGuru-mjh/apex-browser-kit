@@ -1,0 +1,46 @@
+name: Dependency Submission
+
+# Feeds GitHub's dependency graph from Gradle's own resolution, so Dependabot
+# alerts fire for TRANSITIVE dependencies we never declare by hand
+# (kotlinx-serialization pulling in something, a transitive AndroidX artifact, …).
+#
+# This is the single highest-value supply-chain line for a *published* library:
+# consumers depend on our coordinates, so a vulnerable transitive reaches them
+# through us. Free, one step, no Android SDK (it only runs `./gradlew` resolvers).
+#
+# Pattern follows detekt's gradle-dependency-submission.yaml.
+# Reference: https://github.com/gradle/actions/tree/main/dependency-submission
+
+on:
+  push:
+    branches: [main]
+  # Also submit on PRs so the graph preview reflects the branch under review.
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission:
+    name: Gradle dependency graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Configure pre-installed Android SDK
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Submit dependency graph
+        uses: gradle/actions/dependency-submission@v4
+        with:
+          package-ecosystem: gradle

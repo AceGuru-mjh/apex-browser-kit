@@ -1,0 +1,127 @@
+name: Guard Rails
+
+# ============================================================================
+# Fast structural gates — the things that must never regress, checked in
+# seconds without an Android SDK or a Gradle run.
+#
+# Rationale: ci.yml proves the code *compiles and passes tests*, which is a
+# ~5-minute feedback loop and only catches what somebody already thought to
+# write a test for. These gates encode the invariants that are cheap to state
+# and expensive to rediscover:
+#
+#   • core purity        — ':browser-core' is a plain-JVM module with zero
+#                          Android deps and a one-way dependency arrow. The
+#                          README advertises this; nothing enforced it, so one
+#                          convenient `import android.util.Log` would quietly
+#                          break consumers.
+#   • JS injection       — every BrowserScript factory embeds model-supplied
+#                          strings into page-executed JS. PR #1 found
+#                          `ref = "+alert(document.cookie)+"` achieving real
+#                          in-page execution via a zero-escape helper. Unit
+#                          tests cover known cases; this gate stops the shape
+#                          from coming back.
+#   • resources          — `browser_` prefix (AGP only warns, so a host R-class
+#                          collision surfaces in the *consumer*) and values vs
+#                          values-en key/placeholder parity.
+#   • structural quality — God-file budget + anti-patterns, budgets kept in
+#                          sync with the sibling repo Android-Guru-Agent.
+#   • gate self-tests    — each gate is verified against an INJECTED violation.
+#                          A gate that has only ever passed proves nothing; these
+#                          are how we know the gates still detect anything.
+#
+# Every gate is stdlib-only Python 3 so it runs on any runner and needs no
+# Android SDK. Pattern inherited from Android-Guru-Agent's guard-rails.yml.
+# ============================================================================
+
+on:
+  push:
+    branches: [main, 'fix/**', 'feat/**', 'refactor/**', 'docs/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: guard-rails-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  library-invariants:
+    name: Library Invariants (purity + JS injection boundary)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Core purity (zero-Android + one-way dependency arrow)
+        run: python3 scripts/check_core_purity.py
+
+      - name: JS injection boundary (escaping + sync-evaluate)
+        run: python3 scripts/check_js_injection.py
+
+  resource-integrity:
+    name: Resource Integrity (browser_ prefix + locale parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resource prefix + values/values-en mirror + placeholder parity
+        run: python3 scripts/check_resources.py
+
+  structural-quality:
+    name: Structural Quality (size budget + anti-patterns)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: File-size budget + anti-pattern gates
+        run: python3 scripts/check_code_quality.py
+
+      - name: Kotlin bracket balance (lexer-aware)
+        run: |
+          # The lexer strips comments / raw strings / templates first, so
+          # brackets inside JS payloads and KDoc cannot cause false positives.
+          python3 scripts/kotlin_balance.py \
+            $(find . -name "*.kt" -not -path "./.git/*" -not -path "*/build/*")
+
+  gate-self-tests:
+    name: Gate Self-Tests (gates must detect real violations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Each script copies the repo to a temp dir, injects a REAL violation, and
+      # asserts the gate fails. Guards against silent regex rot.
+      - name: Core purity + JS injection gates vs injected violations
+        run: python3 scripts/tests/test_gates_negative.py
+
+      - name: Resource gate vs injected violations
+        run: python3 scripts/tests/test_resource_gate_negative.py
+
+      - name: Code-quality gate vs injected violations
+        run: python3 scripts/tests/test_code_quality_gate_negative.py
+
+  inventory:
+    name: Inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish summary
+        run: |
+          MAIN=$(find . -name "*.kt" -path "*/src/main/*" -not -path "./.git/*" -not -path "*/build/*" | wc -l)
+          TEST=$(find . -name "*.kt" -path "*/src/test/*" -not -path "./.git/*" -not -path "*/build/*" | wc -l)
+          {
+            echo "## 📚 apex-browser-kit inventory"
+            echo ""
+            echo "- Main sources: **$MAIN** Kotlin files"
+            echo "- Test sources: **$TEST** Kotlin files"
+            echo "- Modules: \`:browser-core\` (pure JVM) → \`:browser-engine\` → \`:browser-chrome\`"
+            echo "- Trigger: \`${{ github.event_name }}\` on \`${{ github.ref_name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
