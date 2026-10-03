@@ -1,6 +1,3 @@
-import com.vanniktech.maven.publish.AndroidLibrary
-import com.vanniktech.maven.publish.JavadocJar
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -39,7 +36,7 @@ group = "com.apex.browser"
 version = "1.0.0"
 
 mavenPublishing {
-    configure(AndroidLibrary(javadocJar = JavadocJar.None(), sourcesJar = true))
+    // Android 项目用 vanniktech 0.30 自动配置（Empty javadoc + sources + release variant）
     coordinates(
         groupId = "com.apex.browser",
         artifactId = "browser-engine",
