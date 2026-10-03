@@ -66,6 +66,9 @@ fun BrowserChrome(
     val ui by controller.ui.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    // 轻提示文案预取（onCopyLink 是非 Compose lambda，stringResource 须在组合作用域取好）
+    val snackLinkCopied = stringResource(R.string.browser_snack_link_copied)
+    val snackNoLink = stringResource(R.string.browser_snack_no_link)
 
     LaunchedEffect(controller) { controller.start(scope) }
     DisposableEffect(controller) {
@@ -122,9 +125,9 @@ fun BrowserChrome(
                             val url = controller.currentUrl()
                             if (url != null) {
                                 clipboard.setText(AnnotatedString(url))
-                                controller.showSnack(stringResource(R.string.browser_snack_link_copied))
+                                controller.showSnack(snackLinkCopied)
                             } else {
-                                controller.showSnack(stringResource(R.string.browser_snack_no_link))
+                                controller.showSnack(snackNoLink)
                             }
                         },
                     )

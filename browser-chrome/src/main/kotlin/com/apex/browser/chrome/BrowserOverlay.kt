@@ -1,4 +1,4 @@
-package com.apex.browser.engine
+package com.apex.browser.chrome
 
 import android.annotation.SuppressLint
 import android.content.Context
