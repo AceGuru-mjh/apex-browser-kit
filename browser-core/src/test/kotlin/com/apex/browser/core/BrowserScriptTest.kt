@@ -398,4 +398,23 @@ class BrowserScriptTest {
             js.contains("outline='2px solid ' + ") && js.contains("\\'"),
         )
     }
+
+    @Test
+    fun `ref \u4e0d\u5f97\u4ee5\u8868\u8fbe\u5f0f\u6587\u672c\u6cc4\u6f0f\u5230\u751f\u6210\u7684 JS \u91cc`() {
+        // \u610f\u56fe\uff1a\u66fe\u7ecf\u5199\u8fc7 refHitsJs("ref.toJsonString()") \u2014\u2014 Kotlin \u4f20\u7684\u662f\u8868\u8fbe\u5f0f\u7684
+        // *\u6587\u672c*\uff0c\u4e0d\u662f\u5b83\u7684\u503c\u3002\u751f\u6210\u7684 JS \u91cc\u56e0\u6b64\u51fa\u73b0 `=== ref.toJsonString()`\uff0c
+        // \u91cc\u9762\u7684 ref \u662f\u672a\u5b9a\u4e49\u53d8\u91cf -> ReferenceError\uff0cref \u5b9a\u4f4d\u53c8\u6210\u4e86\u5b8c\u5168\u4e0d\u53ef\u7528\u3002
+        // \u672c\u6d4b\u8bd5\u628a\u8fd9\u4e00\u7c7b\u9519\u8bef\u56fa\u5b9a\u4e3a\u4e0d\u53ef\u80fd\u3002
+        val js = BrowserScript.rectByRefJs("r_3k9f")
+        assertFalse(
+            "\u751f\u6210\u7684 JS \u91cc\u4e0d\u5f97\u51fa\u73b0 Kotlin \u8868\u8fbe\u5f0f\u6587\u672c\uff1a" + js,
+            js.contains("toJsonString()"),
+        )
+        assertFalse(
+            "\u751f\u6210\u7684 JS \u91cc\u4e0d\u5f97\u51fa\u73b0\u672a\u5b9a\u4e49\u7684 Kotlin \u53c2\u6570\u540d\uff1a" + js,
+            js.contains("=== ref"),
+        )
+        // ref \u5fc5\u987b\u4ee5\u5df2\u8f6c\u4e49\u7684 JS \u5b57\u7b26\u4e32\u5b57\u9762\u91cf\u51fa\u73b0\uff0c\u800c\u4e0d\u662f\u4ee3\u7801\u5757
+        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_3k9f'"))
+    }
 }
