@@ -43,7 +43,7 @@ object BrowserScript {
           }
           var MAX = $SNAPSHOT_MAX_ELEMENTS;
           var out = [];
-          var interactiveSel = ${"'$sel'"};
+          var interactiveSel = ${sel.toJsonString()};
           var all = document.querySelectorAll(interactiveSel);
           for (var i=0;i<all.length;i++){
             if (out.length >= MAX) break;
