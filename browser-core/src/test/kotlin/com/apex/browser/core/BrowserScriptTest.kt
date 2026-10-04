@@ -168,7 +168,141 @@ class BrowserScriptTest {
     @Test
     fun `highlightJs 对目标 ref 注入 outline`() {
         val js = BrowserScript.highlightJs("r_z12", "#ff0000")
-        assertTrue(js.contains("[data-apex-hash=\"r_z12\"]"))
+        // v1.1.0：ref 统一走单引号转义包装（'[data-apex-hash=\'r_z12\']'）
+        assertTrue(js.contains("[data-apex-hash='r_z12']"))
         assertTrue(js.contains("outline='2px solid #ff0000'"))
+    }
+
+    // ═══ v1.1.0：JS 字面量转义（错误率修复的核心防线） ═══
+
+    @Test
+    fun `ref 含单引号时选择器字面量不撕裂`() {
+        // 语义哈希 ref 不含引号，但防御性转义必须就位——任何插值点被喂入
+        // 恶意/意外 ref 都不能撕裂 JS（旧实现零转义，单引号直接语法报错）
+        val js = BrowserScript.scrollIntoViewAndRectJs("r'x")
+        // 生成物里不应出现裸的 'r'x' 撕裂形态：引号必须被转义为 \'
+        assertTrue("单引号必须被转义", js.contains("\\'"))
+        assertFalse("不应残留未转义的 ref 撕裂形态", js.contains("'r'x'"))
+    }
+
+    @Test
+    fun `selector 含 CSS 属性选择器引号时 waitForSelectorJs 仍合法`() {
+        // [href='login'] 是 Agent 高频形态；旧实现生成 querySelector('[href='login']') 必炸
+        val sel = "[href='login']"
+        val js = BrowserScript.waitForSelectorJs(sel)
+        assertTrue("内层引号必须被转义", js.contains("\\'"))
+        assertFalse(
+            "不应出现撕裂的选择器字面量",
+            js.contains("'$sel'") && !js.contains("\\'")
+        )
+    }
+
+    @Test
+    fun `selectJs 的选项值含撇号与换行不撕裂`() {
+        val js = BrowserScript.selectJs("r_1", "it's\nmulti", byText = false)
+        assertTrue(js.contains("\\'"))
+        assertTrue(js.contains("\\n"))
+    }
+
+    @Test
+    fun `setNativeValueJs 多行文本转义为 n 字面量`() {
+        val js = BrowserScript.setNativeValueJs("r_1", "第一行\n第二行", append = false)
+        // 意图：换行必须变成 \n 转义序列，而不是字面换行（撕裂 JS 字符串的旧病）
+        assertFalse("生成的 JS 内不应有字面换行出现在字符串字面量中", js.contains("第一行\n第二行"))
+        assertTrue(js.contains("\\n"))
+    }
+
+    @Test
+    fun `setNativeValueJs 走原型链原生 setter 并派发事件`() {
+        val js = BrowserScript.setNativeValueJs("r_1", "hello", append = false)
+        // 意图：React/Vue 受控组件兼容——native setter + input/change 事件
+        assertTrue(js.contains("getOwnPropertyDescriptor"))
+        assertTrue(js.contains("desc.set.call"))
+        assertTrue(js.contains("new Event('input'"))
+        assertTrue(js.contains("new Event('change'"))
+        assertTrue(js.contains("isContentEditable"))
+    }
+
+    @Test
+    fun `setNativeValueJs append 模式拼接现值`() {
+        val appendJs = BrowserScript.setNativeValueJs("r_1", "x", append = true)
+        val replaceJs = BrowserScript.setNativeValueJs("r_1", "x", append = false)
+        assertTrue("append 模式应拼接现值", appendJs.contains("(cur || '') +"))
+        assertFalse("replace 模式不应拼接", replaceJs.contains("(cur || '') +"))
+    }
+
+    // ═══ v1.1.0：新动作空间脚本的意图 ═══
+
+    @Test
+    fun `scrollIntoViewAndRectJs 先滚动到中央再回读矩形`() {
+        val js = BrowserScript.scrollIntoViewAndRectJs("r_1")
+        assertTrue(js.contains("scrollIntoView"))
+        assertTrue(js.contains("block:'center'"))
+        assertTrue(js.contains("getBoundingClientRect"))
+        assertTrue(js.contains("window.innerWidth"))
+    }
+
+    @Test
+    fun `elementAtPointJs 做命中测试并判定目标归属`() {
+        val js = BrowserScript.elementAtPointJs(120.5f, 300f, "r_1")
+        assertTrue(js.contains("document.elementFromPoint(120.5, 300"))
+        assertTrue(js.contains("isTargetOrChild"))
+        assertTrue(js.contains("target.contains(el)"))
+    }
+
+    @Test
+    fun `locateByFuzzyJs 命中后重打原 ref`() {
+        val js = BrowserScript.locateByFuzzyJs("button", "提交订单", "r_abc")
+        assertTrue(js.contains("indexOf(want)"))
+        assertTrue(js.contains("bestLen")) // 最短文本 = 最精确匹配
+        assertTrue(js.contains("setAttribute('data-apex-hash'"))
+    }
+
+    @Test
+    fun `pressKeyJs 的 Enter 携带表单提交语义`() {
+        val js = BrowserScript.pressKeyJs("enter")
+        assertTrue(js.contains("keydown"))
+        assertTrue(js.contains("keyup"))
+        assertTrue(js.contains("requestSubmit"))
+    }
+
+    @Test
+    fun `pressKeyJs 未知键按单字符派发`() {
+        val js = BrowserScript.pressKeyJs("a")
+        assertTrue(js.contains("keydown"))
+        // 意图：键值如实下发为单字符（Enter 分支是模板常驻代码，由运行时键值门控）
+        assertTrue("键值应按单字符下发", js.contains("var key = 'a'"))
+        assertFalse("单字符键的键值不应是 Enter", js.contains("var key = 'Enter'"))
+    }
+
+    @Test
+    fun `hoverJs 派发完整悬停事件序列`() {
+        val js = BrowserScript.hoverJs("r_1")
+        assertTrue(js.contains("mouseover"))
+        assertTrue(js.contains("mouseenter"))
+        assertTrue(js.contains("mousemove"))
+    }
+
+    @Test
+    fun `extractContentJs 四模式意图齐全`() {
+        for (mode in listOf("article", "tables", "links", "meta")) {
+            val js = BrowserScript.extractContentJs(mode)
+            assertTrue("模式 $mode 应如实下发", js.contains("var mode = '$mode'"))
+        }
+        // article 模式的正文抽取骨架
+        val art = BrowserScript.extractContentJs("article")
+        assertTrue(art.contains("querySelector('article')"))
+        assertTrue(art.contains("wordCount"))
+        // tables 模式行列封顶
+        val tabs = BrowserScript.extractContentJs("tables")
+        assertTrue(tabs.contains("rows.length<50"))
+        assertTrue(tabs.contains("cells.length<30"))
+        // links 模式去重
+        val links = BrowserScript.extractContentJs("links")
+        assertTrue(links.contains("seen[h]"))
+        // meta 模式 og 标签
+        val meta = BrowserScript.extractContentJs("meta")
+        assertTrue(meta.contains("og:title"))
+        assertTrue(meta.contains("canonical"))
     }
 }
