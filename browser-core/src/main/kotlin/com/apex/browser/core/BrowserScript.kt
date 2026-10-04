@@ -166,7 +166,7 @@ object BrowserScript {
     fun rectByRefJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var el = __apexFirst;
           if (!el) return JSON.stringify(null);
           var r = el.getBoundingClientRect();
@@ -209,7 +209,7 @@ object BrowserScript {
         val match = if (byText) "opt.text" else "opt.value"
         return """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var el = __apexFirst;
           if (!el || el.tagName !== 'SELECT') return false;
           var opts = el.options;
@@ -226,7 +226,7 @@ object BrowserScript {
     fun highlightJs(ref: String, color: String = "#1e90ff"): String =
         """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var els = __apexHits;
           for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid ' + ${color.toJsonString()}; }
         })();
@@ -246,7 +246,7 @@ object BrowserScript {
     fun scrollIntoViewAndRectJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var el = __apexFirst;
           if (!el) return JSON.stringify(null);
           el.scrollIntoView({block:'center', inline:'nearest'});
@@ -270,7 +270,7 @@ object BrowserScript {
         (function(){
           var el = document.elementFromPoint($x, $y);
           if (!el) return JSON.stringify({ hit: false });
-          ${refHitsJs("targetRef.toJsonString()")}
+          ${refHitsJs(targetRef)}
           var target = __apexFirst;
           var isTargetOrChild = !!(target && (el === target || target.contains(el)));
           var h = el.getAttribute('data-apex-hash');
@@ -330,7 +330,7 @@ object BrowserScript {
     fun setNativeValueJs(ref: String, text: String, append: Boolean): String =
         """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var el = __apexFirst;
           if (!el) return JSON.stringify({ ok: false, reason: 'not_found' });
           el.focus();
@@ -396,7 +396,7 @@ object BrowserScript {
     fun hoverJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs("ref.toJsonString()")}
+          ${refHitsJs(ref)}
           var el = __apexFirst;
           if (!el) return false;
           var r = el.getBoundingClientRect();
@@ -503,12 +503,12 @@ object BrowserScript {
  * 改为「取全部带标记元素 → 在 JS 内用 === 严格比较属性值」后，ref 全程只是一个 JS
  * 字符串，**不经过 CSS 解析**：无注入面，也不会因畸形 ref 抛错。
  */
-private fun refHitsJs(refExpr: String): String =
+private fun refHitsJs(ref: String): String =
     """
         var __apexHits = [];
         var __apexMarked = document.querySelectorAll('[data-apex-hash]');
         for (var __apexI = 0; __apexI < __apexMarked.length; __apexI++) {
-          if (__apexMarked[__apexI].getAttribute('data-apex-hash') === ${refExpr}) { __apexHits.push(__apexMarked[__apexI]); }
+          if (__apexMarked[__apexI].getAttribute('data-apex-hash') === ${ref.toJsonString()}) { __apexHits.push(__apexMarked[__apexI]); }
         }
         var __apexFirst = __apexHits.length ? __apexHits[0] : null;
     """.trimIndent()
