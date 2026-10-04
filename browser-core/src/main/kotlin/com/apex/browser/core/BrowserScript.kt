@@ -228,7 +228,7 @@ object BrowserScript {
         (function(){
           ${refHitsJs("ref.toJsonString()")}
           var els = __apexHits;
-          for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid $color'; }
+          for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid ' + ${color.toJsonString()}; }
         })();
         """.trimIndent()
 
