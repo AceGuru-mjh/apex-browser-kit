@@ -96,7 +96,11 @@ class BrowserScriptTest {
         val ref = "r_3k9f"
         val js = BrowserScript.rectByRefJs(ref)
         // 意图：必须按语义哈希 ref 查询，才能抗 SPA 局部刷新错位
-        assertTrue(js.contains("[data-apex-hash='$ref']"))
+        // 新契约：ref 不再拼进 CSS 选择器，而是在 JS 内与属性值严格比较
+        assertTrue(
+            "应按 data-apex-hash 属性值定位：" + js,
+            js.contains("getAttribute('data-apex-hash') === '$ref'"),
+        )
     }
 
     @Test
@@ -104,7 +108,11 @@ class BrowserScriptTest {
         // 意图：ref 来自 Agent 参数，必须被安全插值进 data-apex-hash 属性选择器
         val ref = "r_3k9f"
         val js = BrowserScript.rectByRefJs(ref)
-        assertTrue(js.contains("[data-apex-hash='$ref']"))
+        // 新契约：ref 不再拼进 CSS 选择器，而是在 JS 内与属性值严格比较
+        assertTrue(
+            "应按 data-apex-hash 属性值定位：" + js,
+            js.contains("getAttribute('data-apex-hash') === '$ref'"),
+        )
         // 已知限制（基础设施层防护由 WebView 沙箱兜底）：ref 直接字符串插值，
         // 若含 `"` / `]` 可能闭合属性选择器；Agent 层传入的 ref 均来自快照注入的语义哈希，
         // 字符集受限，实际风险低。此处仅验证正常 ref 的嵌入契约。
@@ -116,7 +124,7 @@ class BrowserScriptTest {
     fun `selectJs byValue 按 option 的 value 匹配`() {
         val js = BrowserScript.selectJs("r_abc", "cn", byText = false)
         assertTrue("按 value 匹配", js.contains("opt.value"))
-        assertTrue(js.contains("[data-apex-hash='r_abc']"))
+        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_abc'"))
         assertFalse("不应按 text 匹配", js.contains("opt.text"))
     }
 
@@ -169,8 +177,9 @@ class BrowserScriptTest {
     fun `highlightJs 对目标 ref 注入 outline`() {
         val js = BrowserScript.highlightJs("r_z12", "#ff0000")
         // v1.1.0：ref 统一走单引号转义包装（'[data-apex-hash=\'r_z12\']'）
-        assertTrue(js.contains("[data-apex-hash='r_z12']"))
-        assertTrue(js.contains("outline='2px solid #ff0000'"))
+        assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_z12'"))
+        // 颜色也不再裸拼进引号字面量（同一类双重引号缺陷）
+        assertTrue(js.contains("outline='2px solid ' + '#ff0000'"))
     }
 
     // ═══ v1.1.0：JS 字面量转义（错误率修复的核心防线） ═══
@@ -372,5 +381,21 @@ class BrowserScriptTest {
         assertTrue(js.contains("var __apexFirst = __apexHits.length ? __apexHits[0] : null;"))
         // 循环变量必须带前缀，避免与调用方脚本里的 i / el 碰撞
         assertTrue(js.contains("__apexI"))
+    }
+
+
+    @Test
+    fun `highlightJs 的颜色不得闭合样式串`() {
+        // 意图：旧孢态 outline='2px solid $color' 与 ref 定位同类：
+        // 模板自带引号 + 变量未经转义。注入载荷不需引号字符即可脱离。
+        val js = BrowserScript.highlightJs("r_z12", "red'; alert(1); //")
+        assertFalse(
+            "不得出现未转义的模板引号：" + js,
+            js.contains("'2px solid red'"),
+        )
+        assertTrue(
+            "颜色应经转义后拼接：" + js,
+            js.contains("outline='2px solid ' + ") && js.contains("\\'"),
+        )
     }
 }
