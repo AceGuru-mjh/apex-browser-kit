@@ -176,7 +176,7 @@ class BrowserScriptTest {
     @Test
     fun `highlightJs 对目标 ref 注入 outline`() {
         val js = BrowserScript.highlightJs("r_z12", "#ff0000")
-        // v1.1.0：ref 统一走单引号转义包装（'[data-apex-hash=\'r_z12\']'）
+        // 定位改为属性值比较：ref 以已转义的 JS 字符串字面量参与 ===，不再拼进 CSS 选择器
         assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_z12'"))
         // 颜色也不再裸拼进引号字面量（同一类双重引号缺陷）
         assertTrue(js.contains("outline='2px solid ' + '#ff0000'"))
@@ -400,21 +400,21 @@ class BrowserScriptTest {
     }
 
     @Test
-    fun `ref \u4e0d\u5f97\u4ee5\u8868\u8fbe\u5f0f\u6587\u672c\u6cc4\u6f0f\u5230\u751f\u6210\u7684 JS \u91cc`() {
-        // \u610f\u56fe\uff1a\u66fe\u7ecf\u5199\u8fc7 refHitsJs("ref.toJsonString()") \u2014\u2014 Kotlin \u4f20\u7684\u662f\u8868\u8fbe\u5f0f\u7684
-        // *\u6587\u672c*\uff0c\u4e0d\u662f\u5b83\u7684\u503c\u3002\u751f\u6210\u7684 JS \u91cc\u56e0\u6b64\u51fa\u73b0 `=== ref.toJsonString()`\uff0c
-        // \u91cc\u9762\u7684 ref \u662f\u672a\u5b9a\u4e49\u53d8\u91cf -> ReferenceError\uff0cref \u5b9a\u4f4d\u53c8\u6210\u4e86\u5b8c\u5168\u4e0d\u53ef\u7528\u3002
-        // \u672c\u6d4b\u8bd5\u628a\u8fd9\u4e00\u7c7b\u9519\u8bef\u56fa\u5b9a\u4e3a\u4e0d\u53ef\u80fd\u3002
+    fun `ref 不得以表达式文本泄漏到生成的 JS 里`() {
+        // 意图：曾经写过 refHitsJs("ref.toJsonString()") —— Kotlin 传的是表达式的
+        // *文本*，不是它的值。生成的 JS 里因此出现 `=== ref.toJsonString()`，
+        // 里面的 ref 是未定义变量 -> ReferenceError，ref 定位又成了完全不可用。
+        // 本测试把这一类错误固定为不可能。
         val js = BrowserScript.rectByRefJs("r_3k9f")
         assertFalse(
-            "\u751f\u6210\u7684 JS \u91cc\u4e0d\u5f97\u51fa\u73b0 Kotlin \u8868\u8fbe\u5f0f\u6587\u672c\uff1a" + js,
+            "生成的 JS 里不得出现 Kotlin 表达式文本：" + js,
             js.contains("toJsonString()"),
         )
         assertFalse(
-            "\u751f\u6210\u7684 JS \u91cc\u4e0d\u5f97\u51fa\u73b0\u672a\u5b9a\u4e49\u7684 Kotlin \u53c2\u6570\u540d\uff1a" + js,
+            "生成的 JS 里不得出现未定义的 Kotlin 参数名：" + js,
             js.contains("=== ref"),
         )
-        // ref \u5fc5\u987b\u4ee5\u5df2\u8f6c\u4e49\u7684 JS \u5b57\u7b26\u4e32\u5b57\u9762\u91cf\u51fa\u73b0\uff0c\u800c\u4e0d\u662f\u4ee3\u7801\u5757
+        // ref 必须以已转义的 JS 字符串字面量出现，而不是代码块
         assertTrue(js.contains("getAttribute('data-apex-hash') === 'r_3k9f'"))
     }
 }
