@@ -305,4 +305,72 @@ class BrowserScriptTest {
         assertTrue(meta.contains("og:title"))
         assertTrue(meta.contains("canonical"))
     }
+
+    // -- ref 定位：不得把 ref 拼进 CSS 选择器（安全 + 可用性）--
+
+    @Test
+    fun `ref 定位不得拼进 CSS 属性选择器`() {
+        // 意图：旧形态 querySelector('[data-apex-hash=${ref.toJsonString()}]') 有两个同时存在的故障：
+        //  (a) 模板自带单引号 + 转义函数又套一层单引号 -> 生成
+        //      document.querySelector('[data-apex-hash=' + 'r_3k9f' + ']') 之外的形式
+        //      document.querySelector('[data-apex-hash='r_3k9f']')，对**任何** ref 都是语法错误，
+        //      体现为 click / input / select 完全无法工作；
+        //  (b) 可注入 —— 转义虽已正确跳过引号，但注入载荷**不需要任何引号字符**即可脱离：
+        //      ref = "+alert(document.cookie)+" -> document.querySelector('[data-apex-hash='+alert(document.cookie)+']')
+        //      合法 JS，页内任意代码执行。
+        // 故改为「取全部带标记元素 -> JS 内 === 比较属性值」。
+        val js = BrowserScript.rectByRefJs("r_3k9f")
+        assertFalse(
+            "不得把 ref 拼进 CSS 属性选择器：" + js,
+            js.contains("[data-apex-hash=" + "'" + " +"),
+        )
+        assertFalse(
+            "不得保留双重引号形态：" + js,
+            js.contains("'" + "[data-apex-hash="),
+        )
+        assertTrue(
+            "应改为 querySelectorAll + 属性值比较：" + js,
+            js.contains("getAttribute(" + "'" + "data-apex-hash" + "'" + ") ==="),
+        )
+    }
+
+    @Test
+    fun `七个 ref 定位入口全部改用属性值比较`() {
+        // 意图：每个靠 ref 定位的注入点都必须同步，否则修了其中几处仍留一个可注入面。
+        // 函数名由脚本从 main 的源码映射得出，与 7 个注入点一一对应。
+        val jsSites = listOf(
+            "rectByRefJs" to BrowserScript.rectByRefJs("r_3k9f"),
+            "selectJs" to BrowserScript.selectJs("r_9z", "cn", byText = false),
+            "highlightJs" to BrowserScript.highlightJs("r_hl"),
+            "scrollIntoViewAndRectJs" to BrowserScript.scrollIntoViewAndRectJs("r_sv"),
+            "elementAtPointJs" to BrowserScript.elementAtPointJs(100f, 200f, "r_ep"),
+            "setNativeValueJs" to BrowserScript.setNativeValueJs("r_nv", "hi", false),
+            "hoverJs" to BrowserScript.hoverJs("r_hv"),
+        )
+        assertEquals("ref 定位入口数量", 7, jsSites.size)
+        for ((name, js) in jsSites) {
+            assertFalse(
+                name + " 仍把 ref 拼进 CSS 属性选择器",
+                js.contains("[data-apex-hash=" + "'" + " +"),
+            )
+            assertFalse(
+                name + " 仍保留双重引号形态",
+                js.contains("'" + "[data-apex-hash="),
+            )
+            assertTrue(
+                name + " 应通过 querySelectorAll + 属性值比较定位",
+                js.contains("getAttribute(" + "'" + "data-apex-hash" + "'" + ") ==="),
+            )
+        }
+    }
+
+    @Test
+    fun `定位片段声明统一的 __apexHits 与 __apexFirst`() {
+        // 意图：多个注入点共用同一前置片段，变量名不能各处自定义（重名会静默抬高一个入口）。
+        val js = BrowserScript.rectByRefJs("r_3k9f")
+        assertTrue(js.contains("var __apexHits = [];"))
+        assertTrue(js.contains("var __apexFirst = __apexHits.length ? __apexHits[0] : null;"))
+        // 循环变量必须带前缀，避免与调用方脚本里的 i / el 碰撞
+        assertTrue(js.contains("__apexI"))
+    }
 }
