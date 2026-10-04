@@ -60,14 +60,18 @@ jobs:
         run: ./gradlew :browser-chrome:testDebugUnitTest --no-daemon
 
       # E2 可发布性验证：坐标/POM 生成必须完整（发布到 GitHub Packages 的前置检查）
+      # 版本号从 browser-core/build.gradle.kts 动态读取（v1.1.0 起不再硬编码——
+      # 升版本忘改这里的检查会误报 missing）
       - name: publishToMavenLocal smoke check
         run: |
           ./gradlew publishToMavenLocal --no-daemon
+          VER=$(grep -m1 '^version = "' browser-core/build.gradle.kts | sed 's/version = "//;s/"//')
+          echo "smoke-checking com.apex.browser:*:$VER"
           for a in browser-core browser-engine browser-chrome; do
-            if ls ~/.m2/repository/com/apex/browser/$a/1.0.0/$a-1.0.0.{module,pom} >/dev/null 2>&1; then
-              echo "✅ com.apex.browser:$a:1.0.0 published to mavenLocal"
+            if ls ~/.m2/repository/com/apex/browser/$a/$VER/$a-$VER.{module,pom} >/dev/null 2>&1; then
+              echo "✅ com.apex.browser:$a:$VER published to mavenLocal"
             else
-              echo "❌ com.apex.browser:$a:1.0.0 missing in mavenLocal"; exit 1
+              echo "❌ com.apex.browser:$a:$VER missing in mavenLocal"; exit 1
             fi
           done
 
