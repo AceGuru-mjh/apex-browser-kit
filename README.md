@@ -126,6 +126,43 @@ class HostVisualHook(private val neonBall: CyberNeonBallManager) : BrowserVisual
 - 宿主 DI 接线模块（Hilt）
 - `plugin-web-automation` 插件 APK（宿主插件体系分发壳，与本库无版本耦合）
 
+## v1.1.0 变更（Agent 可靠性与高级功能）
+
+### 错误率削减（修复既有缺陷）
+
+1. **点击坐标密度换算修复**：旧实现把 `getBoundingClientRect` 的 CSS 像素直接当
+   视图物理像素派发——density>1 设备上点击点系统性偏向左上（误点主因）。现按
+   「视图宽 / CSS 视口宽」实测缩放系数换算（同时正确处理页面缩放）；
+2. **JS 字面量统一转义**：`toJsonString()` 此前零转义——selector 含 CSS 属性
+   选择器引号（`[href='x']`）、文本含撇号/换行都会撕裂 JS（静默失败）。现统一
+   转义反斜杠/引号/换行/行分隔符 + `</` 序列；
+3. **点击前置 scrollIntoView + 遮挡检测**：折叠线以下元素不再坐标越界；
+   `elementFromPoint` 命中测试发现粘性顶栏/模态遮罩拦截时下移重试，仍被遮则
+   明确报「被遮挡」而非静默误点；
+4. **React/Vue 安全输入**：`el.value = x` 直赋改为原型链 native setter +
+   input/change 事件（受控组件不再弹回）；contenteditable 支持；多行文本不再
+   撕裂 JS；新增 append / pressEnter 模式；
+5. **模糊自愈定位**：ref 失配时用快照缓存的 tag+文本模糊重定位并重打原 ref
+   ——SPA 局部刷新不再直接失败；新增 `locateElements()` 供 Agent 主动按文本锚定；
+6. **动作后真实 diff**：`PostActionState.urlChanged` 旧实现恒 false、
+   `newElementsCount` 是当前计数而非增量——现按动作前后探针计算真实 URL 变化
+   与元素增量，并携带 `currentUrl`。
+
+### 新增高级 API
+
+| API | 说明 |
+|---|---|
+| `pressKey(key)` | 键盘事件注入（Enter/Tab/Escape/方向键…），Enter 携带表单隐式提交语义 |
+| `hover(ref)` | mouseover/mouseenter/mousemove 悬停序列（下拉菜单、:hover 样式） |
+| `drag(fromRef, toRef)` | 触摸拖拽（DOWN → 插值 MOVE → UP），滑块/排序/拖放 |
+| `extractContent(mode)` | 结构化抽取：article 正文 / tables 表格 / links 链接 / meta 元信息 |
+| `executeJavaScript(js)` | 原生 JS 逃生舱（带超时），长尾页面逻辑兜底 |
+| `getCookies(url?)` | 读取 Cookie（登录态诊断） |
+| `networkLog(limit, urlContains)` | 网络日志按 URL 子串过滤 |
+| `locateElements(text, tag)` | 按文本模糊查找元素并返回可用 ref |
+
+版本：三模块 1.0.0 → **1.1.0**（additive API + 默认参数扩展，宿主源码兼容）。
+
 ## 已知取舍（v1.0.0）
 
 - `BrowserChromeController` 的 5 条 snackbar 文案与 `SuggestionsBuilder` 的联想

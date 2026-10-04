@@ -137,6 +137,14 @@ class BrowserEngine private constructor(
     /** ref(语义哈希) -> 上次快照时的 Bid 序号，点击/输入时按稳定 ref 定位 */
     private val refToBid = mutableMapOf<String, Int>()
 
+    /**
+     * v1.1.0 自愈索引：ref → (tag, 文本) LRU。快照时填充，元素失配时
+     * 供模糊重定位（locateByFuzzyJs）回查描述——SPA 局部刷新不再直接失败。
+     */
+    private val refDescriptorIndex = object : LinkedHashMap<String, Pair<String, String>>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, String>>) = size > 256
+    }
+
     // P1 #7：错误恢复 —— 指数退避重试 + 熔断器（仅瞬态异常重试，语义错误不重试）
     private val retryPolicy = RetryPolicy()
     private val breaker = CircuitBreaker()
@@ -761,6 +769,10 @@ class BrowserEngine private constructor(
             }
             refToBid.clear()
             snap.interactiveElements.forEach { refToBid[it.ref] = it.bid }
+            // v1.1.0 自愈索引同步（tag+text 供失配时模糊重定位）
+            snap.interactiveElements.forEach {
+                if (it.ref.isNotBlank()) refDescriptorIndex[it.ref] = it.tag to it.text
+            }
             snap
         }
     }
@@ -782,8 +794,11 @@ class BrowserEngine private constructor(
         }
     }
 
-    /** 读取已挂载的网络监控日志（#18），返回最近 N 条 fetch/xhr 记录 */
-    suspend fun networkLog(limit: Int = 50): List<Map<String, Any?>> = withContext(Dispatchers.Main) {
+    /** 读取已挂载的网络监控日志（#18），返回最近 N 条 fetch/xhr 记录；v1.1.0 支持按 URL 子串过滤 */
+    suspend fun networkLog(
+        limit: Int = 50,
+        urlContains: String? = null,
+    ): List<Map<String, Any?>> = withContext(Dispatchers.Main) {
         val tab = activeTab() ?: return@withContext emptyList()
         runCatching {
             val jsonStr = kotlinx.coroutines.withTimeout(5000) {
@@ -793,7 +808,9 @@ class BrowserEngine private constructor(
                     ) { cont.resume(it ?: "[]") }
                 }
             }
-            json.parseToJsonElement(jsonStr).jsonArray.map { it.jsonObject.toMap() }
+            val all = json.parseToJsonElement(jsonStr).jsonArray.map { it.jsonObject.toMap() }
+            if (urlContains.isNullOrBlank()) all
+            else all.filter { (it["url"]?.toString() ?: "").contains(urlContains, ignoreCase = true) }
         }.getOrDefault(emptyList())
     }
 
@@ -802,70 +819,187 @@ class BrowserEngine private constructor(
     /**
      * 物理触摸注入点击：DOM(ref) 定位 → WebView 屏幕坐标 → dispatchTouchEvent。
      * 返回 [PostActionState] 供动作后验证(#2)。
+     *
+     * v1.1.0 三重错误率削减：
+     * 1. **密度换算修复**：旧实现把 getBoundingClientRect 的 CSS 像素直接当
+     *    视图物理像素派发——density>1 的设备上点击点系统性偏向左上（误点主因）。
+     *    现按「视图宽 / CSS 视口宽」实测缩放系数后换算（同时正确处理页面缩放）；
+     * 2. **先滚动后点击**：scrollIntoView(block:center) 免除折叠线以下元素
+     *    坐标越界；命中测试（elementFromPoint）发现遮挡时下移重试一次，
+     *    仍被遮则明确报「被 XX 遮挡」而非静默误点；
+     * 3. **模糊自愈**：ref 失配时用快照缓存的 tag+文本模糊重定位（重打原 ref），
+     *    SPA 局部刷新不再直接失败。
      */
     suspend fun clickElement(ref: String): PostActionState = withContext(Dispatchers.Main) {
         val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
         // P1 #7：重试+熔断；元素找不到视为可重试瞬态（可能页面未渲染完）
         withRetry(retryPolicy, breaker) {
-            val center = getCenterInWebView(wv, ref)
-                ?: throw ElementNotFoundException("找不到 ref=$ref 对应元素（可能页面未渲染完成）")
-            probePage(wv)
+            val before = readQuickProbe(wv)
+            val target = resolveClickTarget(wv, ref)
+                ?: throw ElementNotFoundException(
+                    "找不到 ref=$ref 对应元素（可能页面未渲染完成；可先 snapshot 刷新索引后重试）"
+                )
             // 构造真实触摸事件，DOWN~UP 间 30~80ms 随机延迟模拟人类按压
             val downTime = SystemClock.uptimeMillis()
             val hold = (30L..80L).random()
-            val x = center.first
-            val y = center.second
+            val x = target.first
+            val y = target.second
             val down = android.view.MotionEvent.obtain(downTime, downTime, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
             val up = android.view.MotionEvent.obtain(downTime, downTime + hold, android.view.MotionEvent.ACTION_UP, x, y, 0)
             wv.dispatchTouchEvent(down)
             wv.dispatchTouchEvent(up)
             down.recycle(); up.recycle()
             delay((300L..800L).random()) // 等待页面响应
-            probePage(wv)
+            probePage(wv, before)
         }
     }
 
-    /** 换算元素中心点到 WebView 自身坐标（dispatchTouchEvent 用 WebView 本地坐标） */
-    private suspend fun getCenterInWebView(wv: WebView, ref: String): Pair<Float, Float>? {
-        val jsonStr = evaluateJson(wv, BrowserScript.rectByRefJs(ref))
+    /**
+     * 解析点击目标：ref 查询 → 模糊自愈 → 滚动到中央 → CSS→物理换算 → 遮挡检测。
+     * 返回视图像素坐标；元素不可用时 null。
+     */
+    private suspend fun resolveClickTarget(wv: WebView, ref: String): Pair<Float, Float>? {
+        var css = queryCssRect(wv, ref)
+        if (css == null) {
+            css = fuzzyRelocate(wv, ref)
+            if (css == null) return null
+        }
+        // 遮挡检测：中心点被无关元素拦截 → 下移重试一次（粘性顶栏场景）
+        val occluded = readElementAtPoint(wv, css.centerX, css.centerY, ref)
+        if (occluded != null && !occluded) {
+            wv.evaluateJavascript("window.scrollBy(0, 80); true;", null)
+            delay(250)
+            css = queryCssRect(wv, ref) ?: return null
+            val stillOccluded = readElementAtPoint(wv, css.centerX, css.centerY, ref)
+            if (stillOccluded != null && !stillOccluded) {
+                throw ElementNotFoundException("元素 ref=$ref 被粘性元素遮挡，无法安全点击（可尝试先滚动页面）")
+            }
+        }
+        // CSS → 视图物理像素：实测缩放系数（同时覆盖 density 与页面缩放）
+        val scale = cssScaleFactor(wv, css.vw)
+        val px = (css.centerX * scale).coerceIn(6f, (wv.width - 6).toFloat().coerceAtLeast(6f))
+        val py = (css.centerY * scale).coerceIn(6f, (wv.height - 6).toFloat().coerceAtLeast(6f))
+        return px to py
+    }
+
+    /** 快照矩形（CSS 视口坐标 + 视口宽高）。 */
+    private class CssRect(val centerX: Float, val centerY: Float, val vw: Float, val vh: Float)
+
+    private suspend fun queryCssRect(wv: WebView, ref: String): CssRect? {
+        val jsonStr = evaluateJson(wv, BrowserScript.scrollIntoViewAndRectJs(ref))
+        return parseRectJson(jsonStr)
+    }
+
+    private fun parseRectJson(jsonStr: String): CssRect? = runCatching {
+        val obj = json.parseToJsonElement(jsonStr).jsonObject
+        val x = obj["x"]?.jsonPrimitive?.content?.toFloatOrNull() ?: return null
+        val y = obj["y"]?.jsonPrimitive?.content?.toFloatOrNull() ?: return null
+        val vw = obj["vw"]?.jsonPrimitive?.content?.toFloatOrNull() ?: 0f
+        val vh = obj["vh"]?.jsonPrimitive?.content?.toFloatOrNull() ?: 0f
+        CssRect(x, y, vw, vh)
+    }.getOrNull()
+
+    /**
+     * CSS → 物理像素缩放系数：视图宽 / CSS 视口宽（实测，免 density 与
+     * 页面缩放的双重猜测；视口宽拿不到时退回 density）。
+     */
+    private fun cssScaleFactor(wv: WebView, cssViewportWidth: Float): Float {
+        if (cssViewportWidth > 0f && wv.width > 0) return wv.width.toFloat() / cssViewportWidth
+        return wv.resources.displayMetrics.density
+    }
+
+    /** 命中测试：中心点是否落在目标元素（或其后代）上；无法判定时 null（不阻断）。 */
+    private suspend fun readElementAtPoint(wv: WebView, cssX: Float, cssY: Float, ref: String): Boolean? {
+        val jsonStr = runCatching { evaluateJson(wv, BrowserScript.elementAtPointJs(cssX, cssY, ref)) }.getOrNull() ?: return null
         return runCatching {
             val obj = json.parseToJsonElement(jsonStr).jsonObject
-            val x = obj["x"]?.jsonPrimitive?.content?.toFloat()
-            val y = obj["y"]?.jsonPrimitive?.content?.toFloat()
-            if (x != null && y != null) x to y else null
+            if (obj["hit"]?.jsonPrimitive?.content == "true") {
+                obj["isTargetOrChild"]?.jsonPrimitive?.content == "true"
+            } else null
         }.getOrNull()
+    }
+
+    /**
+     * 模糊自愈：ref 失配时用快照缓存的 tag+文本模糊重定位，命中后**重打原 ref**。
+     * 返回新矩形；无缓存或未命中返回 null。
+     */
+    private suspend fun fuzzyRelocate(wv: WebView, ref: String): CssRect? {
+        val (tag, text) = refDescriptorIndex[ref] ?: return null
+        if (text.isBlank()) return null
+        val jsonStr = runCatching {
+            evaluateJson(wv, BrowserScript.locateByFuzzyJs(tag.ifBlank { "*" }, text, ref))
+        }.getOrNull() ?: return null
+        val rect = parseRectJson(jsonStr) ?: return null
+        return rect
     }
 
     // ═════════ 输入 / 选择 / 切换（P0 #5 动作空间补全） ═════════
 
-    suspend fun inputText(ref: String, text: String): PostActionState = withContext(Dispatchers.Main) {
+    /**
+     * 文本输入（v1.1.0 重写）：React/Vue 安全写值 + contenteditable + 多行安全
+     * + 模糊自愈 + 可选回车提交。
+     *
+     * 旧实现三重缺陷：`el.value = x` 直赋被受控组件弹回；换行未转义直接
+     * 撕裂 JS 字符串（多行输入必炸）；找不到元素时报错但 SPA 局部刷新后
+     * 元素其实还在（哈希变了）。详见 [BrowserScript.setNativeValueJs]。
+     */
+    suspend fun inputText(
+        ref: String,
+        text: String,
+        append: Boolean = false,
+        pressEnter: Boolean = false,
+    ): PostActionState = withContext(Dispatchers.Main) {
         val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
         withRetry(retryPolicy, breaker) {
-            val safe = text.replace("\\", "\\\\").replace("'", "\\'")
-            val ok = evaluateBoolean(wv, """
-                (function(){
-                  var el = document.querySelector('[data-apex-hash=${ref.replace("\"", "\\\"")}]');
-                  if (!el) return false;
-                  el.focus();
-                  el.value = '$safe';
-                  el.dispatchEvent(new Event('input', {bubbles:true}));
-                  el.dispatchEvent(new Event('change', {bubbles:true}));
-                  return true;
-                })();
-            """)
-            delay(200)
-            if (ok) probePage(wv) else throw ElementNotFoundException("找不到输入框 ref=$ref")
+            val before = readQuickProbe(wv)
+            val resultJson = evaluateJson(wv, BrowserScript.setNativeValueJs(ref, text, append))
+            val parsed = runCatching {
+                json.parseToJsonElement(resultJson).jsonObject
+            }.getOrNull()
+            when (parsed?.get("ok")?.jsonPrimitive?.content) {
+                "true" -> Unit
+                "false" -> {
+                    val reason = parsed["reason"]?.jsonPrimitive?.content ?: ""
+                    if (reason == "not_found") {
+                        // 模糊自愈：SPA 局部刷新后哈希失配，按缓存 tag+文本重定位
+                        if (fuzzyRelocate(wv, ref) == null) {
+                            throw ElementNotFoundException("找不到输入框 ref=$ref（可先 snapshot 刷新索引后重试）")
+                        }
+                        val retryJson = evaluateJson(wv, BrowserScript.setNativeValueJs(ref, text, append))
+                        val retryParsed = runCatching {
+                            json.parseToJsonElement(retryJson).jsonObject
+                        }.getOrNull()
+                        if (retryParsed?.get("ok")?.jsonPrimitive?.content != "true") {
+                            throw ElementNotFoundException("输入失败：重定位后仍无法写入 ref=$ref")
+                        }
+                    } else {
+                        throw ElementNotFoundException("ref=$ref 不是可输入元素（reason=$reason）")
+                    }
+                }
+                else -> throw ElementNotFoundException("输入结果解析失败 ref=$ref")
+            }
+            if (pressEnter) {
+                evaluateBoolean(wv, BrowserScript.pressKeyJs("enter"))
+                delay(400) // 回车常触发导航/搜索，留出响应窗口
+            } else {
+                delay(200)
+            }
+            probePage(wv, before)
         }
     }
 
-    /** <select> 选择：按 value 或可见文本 */
+    /** <select> 选择：按 value 或可见文本（v1.1.0：模糊自愈 + 前后 diff） */
     suspend fun selectOption(ref: String, value: String, byText: Boolean = false): PostActionState =
         withContext(Dispatchers.Main) {
             val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
             withRetry(retryPolicy, breaker) {
-                val ok = evaluateBoolean(wv, BrowserScript.selectJs(ref, value, byText))
+                val before = readQuickProbe(wv)
+                var ok = evaluateBoolean(wv, BrowserScript.selectJs(ref, value, byText))
+                if (!ok && fuzzyRelocate(wv, ref) != null) {
+                    ok = evaluateBoolean(wv, BrowserScript.selectJs(ref, value, byText))
+                }
                 delay(200)
-                if (ok) probePage(wv) else throw ElementNotFoundException("找不到 select ref=$ref 或选项不匹配")
+                if (ok) probePage(wv, before) else throw ElementNotFoundException("找不到 select ref=$ref 或选项不匹配（value=$value byText=$byText）")
             }
         }
 
@@ -966,6 +1100,179 @@ class BrowserEngine private constructor(
         runCatching { CookieManager.getInstance().flush() }
     }
 
+    // ═════════ v1.1.0 高级动作空间（键鼠 / 抽取 / 逃生舱） ═════════
+
+    /**
+     * 键盘事件注入（v1.1.0）：对 activeElement 派发 keydown/keypress/keyup。
+     *
+     * 支持键名：enter / tab / escape / backspace / delete / arrowup /
+     * arrowdown / arrowleft / arrowright / pageup / pagedown / home / end /
+     * space，或任意单字符。Enter 携带表单隐式提交语义（requestSubmit）。
+     */
+    suspend fun pressKey(key: String): PostActionState = withContext(Dispatchers.Main) {
+        val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
+        withRetry(retryPolicy, breaker) {
+            val before = readQuickProbe(wv)
+            val ok = evaluateBoolean(wv, BrowserScript.pressKeyJs(key))
+            delay(300)
+            if (ok) probePage(wv, before)
+            else PostActionState.failed("按键 $key 派发失败")
+        }
+    }
+
+    /** 悬停（v1.1.0）：mouseover/mouseenter/mousemove 事件序列，驱动下拉菜单与 :hover 样式。 */
+    suspend fun hover(ref: String): PostActionState = withContext(Dispatchers.Main) {
+        val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
+        withRetry(retryPolicy, breaker) {
+            var ok = evaluateBoolean(wv, BrowserScript.hoverJs(ref))
+            if (!ok && fuzzyRelocate(wv, ref) != null) {
+                ok = evaluateBoolean(wv, BrowserScript.hoverJs(ref))
+            }
+            delay(250)
+            if (ok) probePage(wv) else throw ElementNotFoundException("找不到悬停目标 ref=$ref")
+        }
+    }
+
+    /**
+     * 结构化内容抽取（v1.1.0）：正文 / 表格 / 链接 / 元信息四模式。
+     *
+     * 返回 JSON 文本（article: {title,url,wordCount,text}；tables: 数组；
+     * links: 数组；meta: 对象）——Agent 拿到即可直接消费，无需二次 snapshot
+     * 再自己拼。失败返回 null。
+     */
+    suspend fun extractContent(
+        mode: BrowserScript.ExtractMode = BrowserScript.ExtractMode.ARTICLE,
+    ): String? = withContext(Dispatchers.Main) {
+        val wv = activeTab()?.webView ?: return@withContext null
+        runCatching {
+            val raw = kotlinx.coroutines.withTimeout(8000) {
+                suspendCancellableCoroutine<String> { cont ->
+                    wv.evaluateJavascript(BrowserScript.extractContentJs(mode.value)) { cont.resume(it ?: "null") }
+                }
+            }
+            // evaluateJavascript 返回 JSON 字符串字面量（带引号），解一层
+            json.parseToJsonElement(raw).jsonPrimitive.content
+        }.getOrNull()
+    }
+
+    /**
+     * 原生 JS 逃生舱（v1.1.0）：执行任意脚本并返回结果的字符串形式。
+     *
+     * 供 Agent 处理本库动作空间覆盖不到的长尾页面逻辑；与 [extractContent]
+     * 互补。脚本异常/超时返回 null。
+     */
+    suspend fun executeJavaScript(script: String, timeoutMs: Long = 8000): String? =
+        withContext(Dispatchers.Main) {
+            val wv = activeTab()?.webView ?: return@withContext null
+            runCatching {
+                kotlinx.coroutines.withTimeout(timeoutMs) {
+                    suspendCancellableCoroutine<String> { cont ->
+                        wv.evaluateJavascript(script) { cont.resume(it ?: "null") }
+                    }
+                }
+            }.getOrNull()
+        }
+
+    /**
+     * 读取 Cookie（v1.1.0）：url 为空取当前页。返回 "k1=v1; k2=v2" 形式，
+     * 供 Agent 做登录态诊断或跨标签验证。
+     */
+    suspend fun getCookies(url: String? = null): String? = withContext(Dispatchers.Main) {
+        val target = url?.takeIf { it.isNotBlank() }
+            ?: activeTab()?.webView?.url
+            ?: return@withContext null
+        runCatching { CookieManager.getInstance().getCookie(target) }.getOrNull()
+    }
+
+    /**
+     * 按文本模糊查找元素（v1.1.0 Agent 侧 API）：返回匹配元素的
+     * ref/tag/text 矩形列表。Agent 在 ref 失配且快照刷新也无效时，
+     * 可用它主动按可见文本重新锚定（与引擎内建的模糊自愈同源）。
+     */
+    suspend fun locateElements(
+        textContains: String,
+        tag: String = "*",
+        limit: Int = 10,
+    ): List<Map<String, String>> = withContext(Dispatchers.Main) {
+        val wv = activeTab()?.webView ?: return@withContext emptyList()
+        runCatching {
+            val raw = executeJavaScript(
+                """
+                (function(){
+                  var want = ${'"'}${textContains.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\n")}${'"'};
+                  var nodes = document.querySelectorAll(${'"'}${tag.replace("\"", "\\\"")}${'"'});
+                  var out = [];
+                  for (var i=0;i<nodes.length && out.length<$limit;i++){
+                    var el = nodes[i];
+                    var t = (el.innerText || el.value || el.getAttribute('aria-label') || '').replace(/\s+/g,' ').trim();
+                    if (!t || t.indexOf(want) < 0) continue;
+                    var r = el.getBoundingClientRect();
+                    if (r.width === 0 || r.height === 0) continue;
+                    var ref = el.getAttribute('data-apex-hash');
+                    if (!ref) {
+                      var h = 0; var s = (el.tagName + '|' + t.slice(0,80));
+                      for (var j=0;j<s.length;j++){ h = ((h<<5)-h)+s.charCodeAt(j); h|=0; }
+                      ref = 'r_' + Math.abs(h).toString(36);
+                      el.setAttribute('data-apex-hash', ref);
+                    }
+                    out.push({ ref: ref, tag: el.tagName, text: t.slice(0,120) });
+                  }
+                  return JSON.stringify(out);
+                })();
+                """.trimIndent()
+            ) ?: return@withContext emptyList()
+            val inner = json.parseToJsonElement(raw).jsonPrimitive.content
+            json.parseToJsonElement(inner).jsonArray.map { el ->
+                val obj = el.jsonObject
+                buildMap {
+                    obj.forEach { (k, v) -> put(k, v.jsonPrimitive.content) }
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /**
+     * 触摸拖拽（v1.1.0）：从 fromRef 元素中心拖到 toRef 元素中心。
+     *
+     * DOWN → 线性插值 MOVE（[steps] 步，每步 ~16ms）→ UP，
+     * 驱动滑块、排序、拖放等交互；坐标换算与点击同源（实测缩放系数）。
+     */
+    suspend fun drag(fromRef: String, toRef: String, steps: Int = 14): PostActionState =
+        withContext(Dispatchers.Main) {
+            val wv = activeTab()?.webView ?: return@withContext PostActionState.failed("无激活标签页")
+            withRetry(retryPolicy, breaker) {
+                val before = readQuickProbe(wv)
+                val from = queryCssRect(wv, fromRef) ?: fuzzyRelocate(wv, fromRef)
+                    ?: throw ElementNotFoundException("找不到拖拽起点 ref=$fromRef")
+                val to = queryCssRect(wv, toRef) ?: fuzzyRelocate(wv, toRef)
+                    ?: throw ElementNotFoundException("找不到拖拽终点 ref=$toRef")
+                val scale = cssScaleFactor(wv, from.vw)
+                val x0 = from.centerX * scale
+                val y0 = from.centerY * scale
+                val x1 = (to.centerX * scale).coerceIn(6f, (wv.width - 6).toFloat().coerceAtLeast(6f))
+                val y1 = (to.centerY * scale).coerceIn(6f, (wv.height - 6).toFloat().coerceAtLeast(6f))
+                val n = steps.coerceIn(4, 40)
+                val downTime = SystemClock.uptimeMillis()
+                var last = android.view.MotionEvent.obtain(downTime, downTime, android.view.MotionEvent.ACTION_DOWN, x0, y0, 0)
+                wv.dispatchTouchEvent(last)
+                for (i in 1 until n) {
+                    val alpha = i.toFloat() / n
+                    val mx = x0 + (x1 - x0) * alpha
+                    val my = y0 + (y1 - y0) * alpha
+                    val move = android.view.MotionEvent.obtain(downTime, downTime + i * 16L, android.view.MotionEvent.ACTION_MOVE, mx, my, 0)
+                    wv.dispatchTouchEvent(move)
+                    last.recycle()
+                    last = move
+                    delay(16)
+                }
+                val up = android.view.MotionEvent.obtain(downTime, downTime + n * 16L, android.view.MotionEvent.ACTION_UP, x1, y1, 0)
+                wv.dispatchTouchEvent(up)
+                last.recycle(); up.recycle()
+                delay(400)
+                probePage(wv, before)
+            }
+        }
+
     // ═════════ 动作后验证探针（P0 #2） ═════════
 
     data class PostActionState(
@@ -975,27 +1282,56 @@ class BrowserEngine private constructor(
         val pageTitle: String = "",
         val scrollY: Int = 0,
         val failReason: String? = null,
+        /** v1.1.0：动作后的当前 URL（Agent 判定跳转结果的直接证据）。 */
+        val currentUrl: String = "",
     ) {
         fun toText(): String = if (!success) "Error: $failReason"
-        else "动作完成 · URL变化=${urlChanged} · 新增元素=$newElementsCount · 标题=$pageTitle"
+        else "动作完成 · URL=${currentUrl.ifBlank { "未变" }} · URL变化=$urlChanged · 新增元素=$newElementsCount · 标题=$pageTitle"
 
         companion object {
             fun failed(reason: String) = PostActionState(success = false, failReason = reason)
         }
     }
 
-    private suspend fun probePage(wv: WebView): PostActionState {
-        val jsonStr = evaluateJson(wv, BrowserScript.POST_ACTION_PROBE_JS)
+    /**
+     * 页面快照探针（动作前后各读一次）：URL / 标题 / 可交互元素数 / 滚动位。
+     */
+    private class QuickProbe(
+        val url: String,
+        val title: String,
+        val interactiveCount: Int,
+        val scrollY: Int,
+    )
+
+    private suspend fun readQuickProbe(wv: WebView): QuickProbe? {
+        val jsonStr = runCatching { evaluateJson(wv, BrowserScript.POST_ACTION_PROBE_JS) }.getOrNull() ?: return null
         return runCatching {
             val obj = json.parseToJsonElement(jsonStr).jsonObject
-            PostActionState(
-                success = true,
-                urlChanged = false,
-                newElementsCount = obj["interactiveCount"]?.jsonPrimitive?.content?.toInt() ?: 0,
-                pageTitle = obj["title"]?.jsonPrimitive?.content ?: "",
-                scrollY = obj["scrollY"]?.jsonPrimitive?.content?.toInt() ?: 0,
+            QuickProbe(
+                url = obj["url"]?.jsonPrimitive?.content ?: "",
+                title = obj["title"]?.jsonPrimitive?.content ?: "",
+                interactiveCount = obj["interactiveCount"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                scrollY = obj["scrollY"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
             )
-        }.getOrDefault(PostActionState.failed("探针执行失败"))
+        }.getOrNull()
+    }
+
+    /**
+     * 动作后探针（v1.1.0 真实 diff）：与动作前 [before] 对比计算 URL 变化与
+     * 元素增量。旧实现 urlChanged 恒 false、newElementsCount 是当前计数
+     * 而非增量——Agent 拿不到「点击是否产生效果」的可靠证据。
+     */
+    private suspend fun probePage(wv: WebView, before: QuickProbe? = null): PostActionState {
+        val after = readQuickProbe(wv)
+            ?: return PostActionState.failed("探针执行失败")
+        return PostActionState(
+            success = true,
+            urlChanged = before != null && before.url != after.url,
+            newElementsCount = if (before != null) (after.interactiveCount - before.interactiveCount).coerceAtLeast(0) else after.interactiveCount,
+            pageTitle = after.title,
+            scrollY = after.scrollY,
+            currentUrl = after.url,
+        )
     }
 
     // ═════════ JS 求值封装 ═════════
