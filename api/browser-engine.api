@@ -1,0 +1,109 @@
+# Public API surface of :browser-engine - COMMITTED BASELINE.
+# Regenerate only with `python scripts/check_api_surface.py --update-baseline` and review the diff.
+browser-engine :: class BrowserEngine private constructor(private val appContext: Context,)
+browser-engine :: class BrowserEngine.BrowserSessionState
+browser-engine :: class BrowserEngine.DownloadRecord(val fileName: String, val url: String, val downloadId: Long,)
+browser-engine :: class BrowserEngine.HandoffLockedException(message: String) : IllegalStateException(message)
+browser-engine :: class BrowserEngine.NavResult(val success: Boolean, val selectorFound: Boolean, val timedOut: Boolean)
+browser-engine :: class BrowserEngine.PostActionState(val success: Boolean, val urlChanged: Boolean = false, val newElementsCount: Int = 0, val pageTitle: String =, val scrollY: Int = 0, val failReason: String? = null,)
+browser-engine :: class BrowserEngine.ScrollResult(val scrolled: Boolean, val newElementsDetected: Int = 0)
+browser-engine :: class BrowserEngine.Tab(val id: Int, val webView: WebView, var title: String =, var url: String =, @Volatile var pageFinished: Boolean = false,)
+browser-engine :: class BrowserEngine.WaitOutcome(val matched: Boolean, val detail: String, val elapsedMs: Long)
+browser-engine :: class BrowserTracer(private val capacity: Int = 100)
+browser-engine :: class BrowserTracer.Entry(val timestamp: String, val tool: String, val params: String, val resultSummary: String, val durationMs: Long, val url: String?, val state: String,)
+browser-engine :: class OverlayLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner
+browser-engine :: fun BrowserEngine.BrowserUiCallback.onStateChanged(state: BrowserSessionState, url: String?, title: String?)
+browser-engine :: fun BrowserEngine.PostActionState.toText(): String
+browser-engine :: fun BrowserEngine.activeTab(): Tab?
+browser-engine :: fun BrowserEngine.activeWebView(): WebView?
+browser-engine :: fun BrowserEngine.addUiCallback(cb: BrowserUiCallback)
+browser-engine :: fun BrowserEngine.assertAgentControl()
+browser-engine :: fun BrowserEngine.clickElement(ref: String): PostActionState
+browser-engine :: fun BrowserEngine.closeAllTabs()
+browser-engine :: fun BrowserEngine.closeTab(id: Int): Boolean
+browser-engine :: fun BrowserEngine.completeHandoff()
+browser-engine :: fun BrowserEngine.destroy()
+browser-engine :: fun BrowserEngine.enterHandoffMode()
+browser-engine :: fun BrowserEngine.evaluateA11yJs(wv: WebView): String
+browser-engine :: fun BrowserEngine.evaluateBoolean(wv: WebView, js: String): Boolean
+browser-engine :: fun BrowserEngine.evaluateJson(wv: WebView, js: String): String
+browser-engine :: fun BrowserEngine.evaluateSnapshotJs(wv: WebView, strategy: DomParser.SnapshotStrategy): String
+browser-engine :: fun BrowserEngine.flushCookies()
+browser-engine :: fun BrowserEngine.getCenterInWebView(wv: WebView, ref: String): Pair<Float, Float>?
+browser-engine :: fun BrowserEngine.goBack(): Boolean
+browser-engine :: fun BrowserEngine.goForward(): Boolean
+browser-engine :: fun BrowserEngine.inputText(ref: String, text: String): PostActionState
+browser-engine :: fun BrowserEngine.listTabs(): List<Pair<Int, String>>
+browser-engine :: fun BrowserEngine.navigate(url: String, waitForSelector: String? = null, timeoutMs: Long = 15000, onProgress: ((percent: Int, phase: String) -> Unit)? = null,): NavResult
+browser-engine :: fun BrowserEngine.networkLog(limit: Int = 50): List<Map<String, Any?>>
+browser-engine :: fun BrowserEngine.newTab(url: String? = null): Int
+browser-engine :: fun BrowserEngine.newTabImmediate(url: String?): Int
+browser-engine :: fun BrowserEngine.onTrimMemory(level: Int)
+browser-engine :: fun BrowserEngine.pageType(): PageTypeInfo
+browser-engine :: fun BrowserEngine.performMaintenance()
+browser-engine :: fun BrowserEngine.probePage(wv: WebView): PostActionState
+browser-engine :: fun BrowserEngine.recentHistory(limit: Int): List<String>
+browser-engine :: fun BrowserEngine.releaseBrowser()
+browser-engine :: fun BrowserEngine.removeUiCallback(cb: BrowserUiCallback)
+browser-engine :: fun BrowserEngine.reportDialogForContext(text: String?)
+browser-engine :: fun BrowserEngine.reportDownload(fileName: String, url: String, dmId: Long)
+browser-engine :: fun BrowserEngine.respondFileChooser(uri: android.net.Uri): Boolean
+browser-engine :: fun BrowserEngine.screenshot(onProgress: ((percent: Int, phase: String) -> Unit)? = null,): ByteArray?
+browser-engine :: fun BrowserEngine.scroll(deltaY: Int, waitForNewContent: Boolean = false, maxWaitMs: Long = 3000, onProgress: ((percent: Int, phase: String) -> Unit)? = null,): ScrollResult
+browser-engine :: fun BrowserEngine.selectOption(ref: String, value: String, byText: Boolean = false): PostActionState
+browser-engine :: fun BrowserEngine.snapshot(tokenBudget: Int = 1600, strategy: DomParser.SnapshotStrategy = DomParser.SnapshotStrategy.INTERACTIVE_ONLY, allowA11yFallback: Boolean = true,): PageSnapshot
+browser-engine :: fun BrowserEngine.switchTab(id: Int): Boolean
+browser-engine :: fun BrowserEngine.tabsSnapshot(): List<Triple<Int, String, String>>
+browser-engine :: fun BrowserEngine.toggle(ref: String): PostActionState
+browser-engine :: fun BrowserEngine.waitForCondition(mode: String, value: String, timeoutMs: Long = 10_000, pollMs: Long = 300): WaitOutcome
+browser-engine :: fun BrowserEngine.waitForPageFinished(tab: Tab, timeoutMs: Long, onProgress: ((percent: Int, phase: String) -> Unit)? = null,): Boolean
+browser-engine :: fun BrowserEngine.waitForSelectorOnPage(wv: WebView, selector: String, timeoutMs: Long): Boolean
+browser-engine :: fun BrowserEngineFactory.get(context: Context): BrowserEngine
+browser-engine :: fun BrowserEngineFactory.reset()
+browser-engine :: fun BrowserTracer.clear()
+browser-engine :: fun BrowserTracer.contextSummary(maxFullSteps: Int = 3): String
+browser-engine :: fun BrowserTracer.recent(limit: Int = 20): List<Entry>
+browser-engine :: fun BrowserTracer.record(tool: String, params: String, resultSummary: String, durationMs: Long, url: String?, state: String,)
+browser-engine :: fun OverlayLifecycleOwner.onCreate()
+browser-engine :: fun OverlayLifecycleOwner.onDestroy()
+browser-engine :: fun OverlayLifecycleOwner.onPause()
+browser-engine :: fun OverlayLifecycleOwner.onResume()
+browser-engine :: fun OverlayLifecycleOwner.onStart()
+browser-engine :: fun OverlayLifecycleOwner.onStop()
+browser-engine :: fun OverlayLifecycleOwner.performRestore()
+browser-engine :: interface BrowserEngine.BrowserUiCallback
+browser-engine :: object BrowserEngineFactory
+browser-engine :: val BrowserEngine.DownloadRecord.downloadId : Long
+browser-engine :: val BrowserEngine.DownloadRecord.fileName : String
+browser-engine :: val BrowserEngine.DownloadRecord.url : String
+browser-engine :: val BrowserEngine.NavResult.selectorFound : Boolean
+browser-engine :: val BrowserEngine.NavResult.success : Boolean
+browser-engine :: val BrowserEngine.NavResult.timedOut : Boolean
+browser-engine :: val BrowserEngine.PostActionState.failReason : String?
+browser-engine :: val BrowserEngine.PostActionState.newElementsCount : Int
+browser-engine :: val BrowserEngine.PostActionState.pageTitle : String
+browser-engine :: val BrowserEngine.PostActionState.scrollY : Int
+browser-engine :: val BrowserEngine.PostActionState.success : Boolean
+browser-engine :: val BrowserEngine.PostActionState.urlChanged : Boolean
+browser-engine :: val BrowserEngine.ScrollResult.newElementsDetected : Int
+browser-engine :: val BrowserEngine.ScrollResult.scrolled : Boolean
+browser-engine :: val BrowserEngine.Tab.id : Int
+browser-engine :: val BrowserEngine.Tab.webView : WebView
+browser-engine :: val BrowserEngine.WaitOutcome.detail : String
+browser-engine :: val BrowserEngine.WaitOutcome.elapsedMs : Long
+browser-engine :: val BrowserEngine.WaitOutcome.matched : Boolean
+browser-engine :: val BrowserTracer.Entry.durationMs : Long
+browser-engine :: val BrowserTracer.Entry.params : String
+browser-engine :: val BrowserTracer.Entry.resultSummary : String
+browser-engine :: val BrowserTracer.Entry.state : String
+browser-engine :: val BrowserTracer.Entry.timestamp : String
+browser-engine :: val BrowserTracer.Entry.tool : String
+browser-engine :: val BrowserTracer.Entry.url : String?
+browser-engine :: val OverlayLifecycleOwner.lifecycle : Lifecycle
+browser-engine :: val OverlayLifecycleOwner.savedStateRegistry : SavedStateRegistry
+browser-engine :: var BrowserEngine.Tab.pageFinished : Boolean
+browser-engine :: var BrowserEngine.Tab.title : String
+browser-engine :: var BrowserEngine.Tab.url : String
+browser-engine :: var BrowserEngine.currentState : BrowserSessionState
+browser-engine :: var BrowserEngine.lastDialog : String?
+browser-engine :: var BrowserEngine.lastDownload : DownloadRecord?

@@ -36,8 +36,13 @@ step() {
 run_gates() {
     step "core purity (zero-Android + one-way arrow)"      python3 scripts/check_core_purity.py
     step "JS injection boundary"                           python3 scripts/check_js_injection.py
+    step "WebView sandbox hardening"                       python3 scripts/check_webview_hardening.py
     step "resources (prefix + locale mirror)"              python3 scripts/check_resources.py
     step "structural quality (budget + anti-patterns)"     python3 scripts/check_code_quality.py
+    step "secrets (no credential literals in repo)"         python3 scripts/check_secrets.py
+    step "supply chain (wrapper checksum + JAR + workflows)" python3 scripts/check_supply_chain.py
+    step "versions (single release train + README tracks it)" python3 scripts/check_versions.py
+    step "public API surface (no REMOVED/CHANGED vs api/)"  python3 scripts/check_api_surface.py
     step "kotlin bracket balance (lexer-aware)" \
         python3 scripts/kotlin_balance.py \
         $(find . -name "*.kt" -not -path "./.git/*" -not -path "*/build/*")
@@ -48,6 +53,11 @@ run_gate_selftests() {
         python3 scripts/tests/test_gates_negative.py
     step "resource gate self-test" python3 scripts/tests/test_resource_gate_negative.py
     step "code-quality gate self-test" python3 scripts/tests/test_code_quality_gate_negative.py
+    step "webview-hardening gate self-test" python3 scripts/tests/test_webview_gate_negative.py
+    step "secrets gate self-test" python3 scripts/tests/test_secrets_gate_negative.py
+    step "supply-chain gate self-test" python3 scripts/tests/test_supply_chain_gate_negative.py
+    step "versions gate self-test" python3 scripts/tests/test_versions_gate_negative.py
+    step "API-surface gate self-test" python3 scripts/tests/test_api_gate_negative.py
 }
 
 run_gradle_tests() {
