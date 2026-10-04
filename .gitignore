@@ -14,3 +14,7 @@ local.properties
 *.aab
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
+
+# Python bytecode from the scripts/ gates
+__pycache__/
+*.pyc

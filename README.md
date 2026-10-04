@@ -169,11 +169,25 @@ class HostVisualHook(private val neonBall: CyberNeonBallManager) : BrowserVisual
 
 | Job | 拦什么 |
 |---|---|
-| Library Invariants | `:browser-core` 混进 `android.*` 依赖；依赖箭头反向（core → engine）；注入点绕过 `JsLiteral.string`；零转义helper 复活；注入脚本返回 `Promise` |
+| Library Invariants | `:browser-core` 混进 `android.*` 依赖；依赖箭头反向（core → engine）；注入点绕过 `JsLiteral.string`；零转义 helper 复活；注入脚本返回 `Promise`；**WebView 沙箱被放松**（见下） |
 | Resource Integrity | 资源漏 `browser_` 前缀（AGP 只告警，撞的是**宿主** `R`）；`values` 与 `values-*` 键集/占位符不对齐 |
 | Structural Quality | God-file 体积预算；`printStackTrace()`；反射派发；括号失衡（词法感知） |
+| Supply Chain | 仓库里出现 credential 字面量（PAT/AK/PEM/`password=` 实值）；Gradle 分发包缺 `distributionSha256Sum`；wrapper JAR 被换成 stub；workflow 里 `curl \| sh`；三模块版本号分裂 / README 消费示例过期 / 兼容矩阵漂移；`api/` 基线外出现 public 删除或签名变更（纯新增放行） |
 | **Gate Self-Tests** | 每个门禁都拿**真实注入的违规**去验自己会失败 —— 只跑通过的门禁证明不了任何事 |
 | Inventory | 文件数 / 行数 / 模块清单 |
+
+### 为什么 WebView 加固要自己写门禁
+
+CodeQL 里所有 WebView 相关查询（`websettings-file-access`、
+`webview-addjavascriptinterface`、`improper-webview-certificate-validation` …）
+都属于 **`security-extended` 套件，不在默认套件**；开启该套件是**仓库设置**（PR 改不了），
+且 Kotlin 分析需要完整构建。在此之前 `check_webview_hardening.py` 是唯一在检查这些
+不变量的人 —— 它把 SSL 处理、file/content 访问、混合内容、远程调试、`addJavascriptInterface`
+全部锁成门禁。详见 [SECURITY.md](SECURITY.md)。
+
+**一条容易踩的坑**：`allowFileAccessFromFileURLs` 自 API 30 起被系统忽略，但本库
+`minSdk 26`，在 API 26~29 上它的默认值仍是 `true`。因此那行 `= false` 是**真起作用的
+安全控制，不能当废弃代码删掉** —— 门禁会拦住删除行为。
 
 `dependency-submission.yml` 另把 Gradle 解析结果喂给 GitHub 依赖图，
 使 Dependabot 能对**传递依赖**告警（消费方通过我们的坐标间接依赖它们）。

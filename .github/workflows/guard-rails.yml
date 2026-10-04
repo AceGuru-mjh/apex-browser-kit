@@ -20,6 +20,30 @@ name: Guard Rails
 #                          in-page execution via a zero-escape helper. Unit
 #                          tests cover known cases; this gate stops the shape
 #                          from coming back.
+#   • WebView hardening  — CodeQL's WebView queries all live in the
+#                          `security-extended` suite, which is a REPOSITORY
+#                          SETTING (not a PR) and needs a full build. Until that
+#                          is switched on, this gate is the only thing checking
+#                          SSL handling, file/content access, mixed content and
+#                          remote debugging — the invariants SECURITY.md calls
+#                          vulnerabilities when violated.
+#   • secrets            — GitHub PATs / AWS keys / PEM blocks / concrete
+#                          password= assignments must never land in a published
+#                          repo. Precision-tuned: code expressions
+#                          (`signals["password"]`) and env reads stay silent.
+#   • supply chain       — the Gradle distribution download is verified
+#                          (`distributionSha256Sum`), the wrapper JAR is a real
+#                          artifact, and no workflow pipes curl into a shell.
+#                          Floating action tags are AUDIT-only until a pinning
+#                          bot exists.
+#   • versions           — single release train (all three modules + POM
+#                          coordinates agree), README consumer snippets track
+#                          it, and the compat matrix matches the build files.
+#                          The v1.1.0 bump forgot the README; this stops repeats.
+#   • public API surface — committed baselines under api/ fail on REMOVED /
+#                          CHANGED public declarations (the downstream build
+#                          break the compiler cannot see here). Pure additions
+#                          stay green; regenerate with --update-baseline.
 #   • resources          — `browser_` prefix (AGP only warns, so a host R-class
 #                          collision surfaces in the *consumer*) and values vs
 #                          values-en key/placeholder parity.
@@ -60,6 +84,28 @@ jobs:
 
       - name: JS injection boundary (escaping + sync-evaluate)
         run: python3 scripts/check_js_injection.py
+
+      - name: WebView sandbox hardening (SSL / file+content access / mixed content / debugging)
+        run: python3 scripts/check_webview_hardening.py
+
+  supply-chain:
+    name: Supply Chain (secrets + wrapper + versions + API surface)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secrets (no credential literals / concrete secret assignments)
+        run: python3 scripts/check_secrets.py
+
+      - name: Supply chain (Gradle checksum + wrapper JAR + no pipe-to-shell)
+        run: python3 scripts/check_supply_chain.py
+
+      - name: Versions (single release train + README tracks it)
+        run: python3 scripts/check_versions.py
+
+      - name: Public API surface (no REMOVED / CHANGED vs api/ baselines)
+        run: python3 scripts/check_api_surface.py
 
   resource-integrity:
     name: Resource Integrity (browser_ prefix + locale parity)
@@ -105,6 +151,21 @@ jobs:
 
       - name: Code-quality gate vs injected violations
         run: python3 scripts/tests/test_code_quality_gate_negative.py
+
+      - name: WebView-hardening gate vs injected vulnerabilities
+        run: python3 scripts/tests/test_webview_gate_negative.py
+
+      - name: Secrets gate vs injected credentials
+        run: python3 scripts/tests/test_secrets_gate_negative.py
+
+      - name: Supply-chain gate vs injected violations
+        run: python3 scripts/tests/test_supply_chain_gate_negative.py
+
+      - name: Versions gate vs injected drift
+        run: python3 scripts/tests/test_versions_gate_negative.py
+
+      - name: API-surface gate vs injected breaks
+        run: python3 scripts/tests/test_api_gate_negative.py
 
   inventory:
     name: Inventory

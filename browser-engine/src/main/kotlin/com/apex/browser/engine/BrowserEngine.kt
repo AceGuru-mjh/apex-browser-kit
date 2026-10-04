@@ -163,14 +163,24 @@ class BrowserEngine private constructor(
         @Volatile var pageFinished: Boolean = false,
     )
 
-    @SuppressLint("SetJavaScriptEnabled", "SdCardPath")
+    // P0 #11（安全加固基线）：禁止本地文件访问，避免 UXSS / 路径穿越。
+    //
+    // DEPRECATION 抑制是有理由的，**不要**当死代码删掉：
+    //   - allowFileAccessFromFileURLs 自 API 30 起被系统忽略且恒为 false，但在
+    //     API 26~29（本库 minSdk 26）默认仍为 **true**。删掉这一行等于让老设备上的
+    //     file:// 页面恢复跨文件读取，是一次静默的安全回归。
+    //   - allowUniversalAccessFromFileURLs 默认即 false，这行属防御性冗余，保留。
+    // scripts/check_webview_hardening.py 把上述每一条都锁成门禁：删行、改成 true、
+    // 或只写在 KDoc 里，都会让 CI 失败。
+    @SuppressLint("SetJavaScriptEnabled", "SdCardPath", "DEPRECATION")
     private fun createWebView(): WebView {
         val wv = WebView(applicationContext())
+        // JS 是本库能力的前提（DOM 快照、物理触摸注入均需页面侧脚本），
+        // 故此处显式开启；页面可达性由 scheme 白名单与上述沙箱设置共同约束。
         wv.settings.javaScriptEnabled = true
         wv.settings.domStorageEnabled = true
         wv.settings.loadWithOverviewMode = true
         wv.settings.useWideViewPort = true
-        // P0 #11（安全加固基线）：禁止本地文件访问，避免 UXSS / 路径穿越
         wv.settings.allowFileAccess = false
         wv.settings.allowContentAccess = false
         wv.settings.allowFileAccessFromFileURLs = false

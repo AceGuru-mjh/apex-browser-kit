@@ -1,0 +1,41 @@
+name: OSV Vulnerability Scan
+
+# CVE scanning for declared and (via dependency-submission) transitive
+# dependencies. Uses Google's official reusable workflows — do not hand-roll
+# the scanner step; the reusable workflows handle the PR-vs-base diffing and the
+# Security-tab upload correctly.
+#
+# Two events on purpose:
+#   • pull_request — reports only NEW vulnerabilities vs the base branch, so a
+#     long-lived pre-existing advisory does not block every PR forever.
+#   • schedule     — a weekly full sweep catches advisories published after a
+#     PR was merged.
+#
+# Caveat worth knowing: OSV-Scanner's reach depends on resolvable manifests.
+# This repo has no dependency lockfile or verification metadata yet, so it sees
+# the Gradle coordinates (good enough to catch a bad direct dependency) but is
+# weaker for deep transitive graphs than a locked build would be. Adding
+# `gradle/verification-metadata.xml` is the follow-up that closes that gap.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 12 * * 1"   # weekly, Mondays 12:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-pr:
+    name: Scan (new vulnerabilities only)
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.6.0"
+
+  scan-scheduled:
+    name: Scan (full, weekly)
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.6.0"
