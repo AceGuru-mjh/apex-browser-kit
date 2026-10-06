@@ -43,7 +43,7 @@ object BrowserScript {
           }
           var MAX = $SNAPSHOT_MAX_ELEMENTS;
           var out = [];
-          var interactiveSel = ${"'$sel'"};
+          var interactiveSel = ${sel.toJsonString()};
           var all = document.querySelectorAll(interactiveSel);
           for (var i=0;i<all.length;i++){
             if (out.length >= MAX) break;
@@ -166,7 +166,8 @@ object BrowserScript {
     fun rectByRefJs(ref: String): String =
         """
         (function(){
-          var el = document.querySelector('[data-apex-hash=${ref.toJsonString()}]');
+          ${refHitsJs(ref)}
+          var el = __apexFirst;
           if (!el) return JSON.stringify(null);
           var r = el.getBoundingClientRect();
           return JSON.stringify({ x: r.left + r.width/2, y: r.top + r.height/2,
@@ -208,7 +209,8 @@ object BrowserScript {
         val match = if (byText) "opt.text" else "opt.value"
         return """
         (function(){
-          var el = document.querySelector('[data-apex-hash=${ref.toJsonString()}]');
+          ${refHitsJs(ref)}
+          var el = __apexFirst;
           if (!el || el.tagName !== 'SELECT') return false;
           var opts = el.options;
           for (var i=0;i<opts.length;i++){
@@ -224,8 +226,9 @@ object BrowserScript {
     fun highlightJs(ref: String, color: String = "#1e90ff"): String =
         """
         (function(){
-          var els = document.querySelectorAll('[data-apex-hash=${ref.toJsonString()}]');
-          for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid $color'; }
+          ${refHitsJs(ref)}
+          var els = __apexHits;
+          for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid ' + ${color.toJsonString()}; }
         })();
         """.trimIndent()
 
@@ -243,7 +246,8 @@ object BrowserScript {
     fun scrollIntoViewAndRectJs(ref: String): String =
         """
         (function(){
-          var el = document.querySelector('[data-apex-hash=${ref.toJsonString()}]');
+          ${refHitsJs(ref)}
+          var el = __apexFirst;
           if (!el) return JSON.stringify(null);
           el.scrollIntoView({block:'center', inline:'nearest'});
           var r = el.getBoundingClientRect();
@@ -266,7 +270,8 @@ object BrowserScript {
         (function(){
           var el = document.elementFromPoint($x, $y);
           if (!el) return JSON.stringify({ hit: false });
-          var target = document.querySelector('[data-apex-hash=${targetRef.toJsonString()}]');
+          ${refHitsJs(targetRef)}
+          var target = __apexFirst;
           var isTargetOrChild = !!(target && (el === target || target.contains(el)));
           var h = el.getAttribute('data-apex-hash');
           if (!h) { h = 'hit_' + Math.abs((el.tagName + '|' + (el.innerText||'').slice(0,40)).split('').reduce(function(a,c){return ((a<<5)-a)+c.charCodeAt(0)|0;},0)).toString(36); el.setAttribute('data-apex-hash', h); }
@@ -325,7 +330,8 @@ object BrowserScript {
     fun setNativeValueJs(ref: String, text: String, append: Boolean): String =
         """
         (function(){
-          var el = document.querySelector('[data-apex-hash=${ref.toJsonString()}]');
+          ${refHitsJs(ref)}
+          var el = __apexFirst;
           if (!el) return JSON.stringify({ ok: false, reason: 'not_found' });
           el.focus();
           var ok = true, reason = '';
@@ -390,7 +396,8 @@ object BrowserScript {
     fun hoverJs(ref: String): String =
         """
         (function(){
-          var el = document.querySelector('[data-apex-hash=${ref.toJsonString()}]');
+          ${refHitsJs(ref)}
+          var el = __apexFirst;
           if (!el) return false;
           var r = el.getBoundingClientRect();
           var opts = { bubbles: true, cancelable: true, clientX: r.left + r.width/2, clientY: r.top + r.height/2 };
@@ -478,6 +485,33 @@ object BrowserScript {
         ARTICLE("article"), TABLES("tables"), LINKS("links"), META("meta")
     }
 }
+
+/**
+ * 生成「按语义哈希 ref 定位元素」的 JS 前置片段：声明 `__apexHits`（全部匹配元素）。
+ *
+ * ## 为什么不能把 ref 拼进 CSS 属性选择器
+ *
+ * 旧形态 `querySelector('[data-apex-hash=${ref.toJsonString()}]')` 有两个同时存在的故障：
+ *  1. **双重引号** —— 模板自带单引号，而转义函数又套一层单引号，两者不匹配直接报语法错误。
+ *     生成 `document.querySelector('[data-apex-hash='r_3k9f']')` —— 对**任何** ref 都是语法错误，
+ *     因此 click / input / select 完全无法工作。
+ *  2. **可注入** —— 由于转义已正确跳过引号，但注入载荷**不需要任何引号字符**即可脱离：
+ *     `ref = "+alert(document.cookie)+"` 生成
+ *     `document.querySelector('[data-apex-hash='+alert(document.cookie)+']')`
+ *     —— 合法 JS，页内任意代码执行。
+ *
+ * 改为「取全部带标记元素 → 在 JS 内用 === 严格比较属性值」后，ref 全程只是一个 JS
+ * 字符串，**不经过 CSS 解析**：无注入面，也不会因畸形 ref 抛错。
+ */
+private fun refHitsJs(ref: String): String =
+    """
+        var __apexHits = [];
+        var __apexMarked = document.querySelectorAll('[data-apex-hash]');
+        for (var __apexI = 0; __apexI < __apexMarked.length; __apexI++) {
+          if (__apexMarked[__apexI].getAttribute('data-apex-hash') === ${ref.toJsonString()}) { __apexHits.push(__apexMarked[__apexI]); }
+        }
+        var __apexFirst = __apexHits.length ? __apexHits[0] : null;
+    """.trimIndent()
 
 /** 把字符串安全包成 JS 单引号字面量（v1.1.0 修复：此前零转义）
  *
