@@ -49,4 +49,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Submit dependency graph
+        # continue-on-error（rebase 修复）：依赖图提交依赖仓库的 Dependency graph
+        # 数据服务开关（Settings → 数据服务/依赖图）—— 仓库侧未开启时 API 拒收
+        # （"The Dependency graph is disabled for this repository"），但这是
+        # 数据洞察链路而非构建门禁：绝不应让它把 push main 染红、进而挡住
+        # notify-host → 宿主 sync 的全绿判定。开启仓库设置后提交即自动生效。
+        # 产物（JSON 快照）仍作为 artifact 上传，开启后可回溯。
         uses: gradle/actions/dependency-submission@v4
+        continue-on-error: true

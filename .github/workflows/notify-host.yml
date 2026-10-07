@@ -40,15 +40,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # 门禁口径（rebase 修复）：只统计「构建健康」类 check-run ——
+          # CI（Build & Test / Consumer Check）+ Guard Rails 全套。显式排除：
+          #   • Dependabot*          —— 依赖升级作业，长跑且不门禁合入健康
+          #   • Gradle dependency graph —— 数据洞察链路（continue-on-error）
+          #   • repository_dispatch host sync —— 本 workflow 自身（自引用死锁）
+          GATING_FILTER='.name != "Gradle dependency graph" and (.name | startswith("Dependabot") | not) and .name != "repository_dispatch host sync"'
           for i in $(seq 1 90); do
             SUMMARY=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '{total: (.total_count // 0),
-                     pending: ([.check_runs[]? | select(.status != "completed")] | length),
-                     failed: ([.check_runs[]? | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral")] | length)}')
+              --jq "([.check_runs[]? | select($GATING_FILTER)]) as \$gating |
+                     {total: (\$gating | length),
+                      pending: (\$gating | map(select(.status != \"completed\")) | length),
+                      failed: (\$gating | map(select(.conclusion != \"success\" and .conclusion != \"skipped\" and .conclusion != \"neutral\")) | length)}")
             TOTAL=$(echo "$SUMMARY" | jq -r .total)
             PENDING=$(echo "$SUMMARY" | jq -r .pending)
             FAILED=$(echo "$SUMMARY" | jq -r .failed)
-            echo "[poll $i] check-runs: total=$TOTAL pending=$PENDING failed=$FAILED"
+            echo "[poll $i] 门禁 check-runs: total=$TOTAL pending=$PENDING failed=$FAILED"
             if [ "$TOTAL" != "0" ] && [ "$PENDING" = "0" ]; then
               if [ "$FAILED" != "0" ]; then
                 echo "::notice::本提交 CI 有 $FAILED 项失败 —— 不通知主仓同步（修复后下一提交会再触发）"
