@@ -23,7 +23,7 @@ Embedded WebView automation engine with Compose chrome UI — 从
 **`JsLiteral.string`**（`browser-core/.../core/JsLiteral.kt`），覆盖 `'` `\`、
 换行/回车/制表等控制字符，以及 U+2028 / U+2029（JSON 合法但 JS 字面量非法）。
 
-> **v1.0.1 修复**：v1.0.0 的注入点是 `private fun String.toJsonString() = "'$this'"`，
+> **v1.0.1 修复（已随 rebase 并入 1.1.0 发布列车）**：v1.0.0 的注入点是 `private fun String.toJsonString() = "'$this'"`，
 > 零转义。实测 `ref = "+alert(document.cookie)+"` 可生成
 > `document.querySelector('[data-apex-hash='+alert(document.cookie)+']')`
 > —— **由 ref 字符串驱动的页内任意 JS 执行**。现所有注入点统一走 `JsLiteral.string`。
