@@ -11,6 +11,15 @@ package com.apex.browser.core
  *   抗 SPA 局部刷新错位（替代旧的顺序/属性混合 ref `data-apex-ref`）。
  * - JS 层启发式剪枝：跳过不可见、非交互无文本、零尺寸节点；硬上限 [SNAPSHOT_MAX_ELEMENTS]。
  * - 返回的每个元素都带 `data-apex-hash`，供后续 DOM 级定位与物理触摸注入使用。
+ *
+ * ## 注入边界（rebase 后唯一收敛口径）
+ *
+ * 本文件是库向 WebView 注 JS 的**唯一生成入口**：一切外部字符串（ref / selector /
+ * value / text / tag）一律经 [JsLiteral.string] 编码后拼接；ref 定位一律经
+ * [refLookupJs]（JS 内 `===` 严格比较，不经过 CSS 解析）。v1.1.0 曾以
+ * `toJsonString`/`refHitsJs` 过渡实现同一目标，现已统一收敛到 [JsLiteral] +
+ * [refLookupJs]（转义覆盖面更全：控制字符 / U+2028-9 / DEL；`</` 序列防御
+ * 由调用方上下文决定，evaluateJavascript 纯 JS 上下文无 HTML 闭合面）。
  */
 object BrowserScript {
 
@@ -23,6 +32,12 @@ object BrowserScript {
      *
      * @param strategy 剪枝策略（#19/#20）：传入 [DomParser.SnapshotStrategy]，
      *   不同策略收窄查询选择器，进一步降低回传体积。
+     *
+     * 可见性剪枝的判据：**不得**用 `offsetParent !== null`。`position:fixed` 的可见元素
+     * 其 `offsetParent` 恒为 `null`（视口外定位元素亦然），用旧判据会系统性误杀
+     * 吸顶导航栏 / 悬浮操作按钮 / 弹窗控件 —— 恰是现代站点最需要 Agent 点击的元素，
+     * 且失败方式是无声地少给几个 ref。现改为 `getBoundingClientRect` 与
+     * `display` / `visibility` / `opacity` 联合判定。
      */
     fun snapshotJs(strategy: DomParser.SnapshotStrategy = DomParser.SnapshotStrategy.INTERACTIVE_ONLY): String {
         val sel = when (strategy) {
@@ -43,18 +58,18 @@ object BrowserScript {
           }
           var MAX = $SNAPSHOT_MAX_ELEMENTS;
           var out = [];
-          var interactiveSel = ${sel.toJsonString()};
+          var interactiveSel = ${JsLiteral.string(sel)};
           var all = document.querySelectorAll(interactiveSel);
           for (var i=0;i<all.length;i++){
             if (out.length >= MAX) break;
             var el = all[i];
             var style = window.getComputedStyle(el);
-            // 启发式剪枝：不可见 / 透明 / 脱离布局 / 零尺寸
-            var visible = style.display !== 'none' && style.visibility !== 'hidden'
-                  && parseFloat(style.opacity) > 0.05 && el.offsetParent !== null;
-            if (!visible) continue;
             var rect = el.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) continue;
+            // 启发式剪枝：不可见 / 透明 / 零尺寸
+            var visible = style.display !== 'none' && style.visibility !== 'hidden'
+                  && parseFloat(style.opacity) > 0.05
+                  && rect.width > 0 && rect.height > 0;
+            if (!visible) continue;
             var text = (el.innerText || el.value || el.placeholder || '').replace(/\s+/g,' ').trim();
             // 非交互且无文本 -> 纯布局噪音，跳过
             if (text.length === 0 && !el.hasAttribute('aria-label') && !el.hasAttribute('placeholder')
@@ -106,11 +121,15 @@ object BrowserScript {
           for (var i=0;i<all.length && out.length<MAX;i++){
             var el = all[i];
             var role = el.getAttribute && el.getAttribute('role');
+            // innerText 在部分元素上 undefined（SVG/void 元素），textContent 为通用回退；
+            // 下方容量剪枝也必须复用同一取值，否则会对 undefined 调 .trim() 抛错，
+            // 使整个降级快照返回空（降级路径静默失效是最难排查的一类故障）。
+            var inner = el.innerText || el.textContent || '';
             var name = (el.getAttribute && (el.getAttribute('aria-label')||el.getAttribute('title'))) ||
-                       (el.innerText || '').replace(/\\s+/g,' ').trim().slice(0,80);
+                       inner.replace(/\s+/g,' ').trim().slice(0,80);
             if (!role && (!name || name.length===0)) continue;
             // 跳过纯布局容器（无语义 role 且无标签）
-            if (!role && el.children.length>0 && el.innerText.trim().length>120) continue;
+            if (!role && el.children.length>0 && inner.replace(/\s+/g,' ').trim().length>120) continue;
             var rect = el.getBoundingClientRect();
             if (rect.width===0 || rect.height===0) continue;
             var text = (name||'').toString().slice(0,120);
@@ -162,12 +181,72 @@ object BrowserScript {
         })();
         """.trimIndent()
 
+    /**
+     * 页面形态信号采集（[PageClassifier] 的数据源）：一次 JS 拿全部计数并回传 JSON。
+     *
+     * 纯同步（无 Promise —— `evaluateJavascript` 回调不等待 Promise 完成）；
+     * `querySelectorAll` 的广义选择器在老旧内核上可能抛错，逐项 try 兜底。
+     *
+     * 原为 `BrowserEngine` 伴生对象里的 `private val PAGE_TYPE_JS` —— 与引擎耦合且
+     * 不可测，现随分类逻辑一同下沉到 `:browser-core`（见 [PageClassifier]）。
+     */
+    val PAGE_TYPE_JS: String
+        get() = """
+        (function(){
+          try {
+            var q = function(s){ try { return document.querySelectorAll(s).length; } catch(e){ return 0; } };
+            var b = document.body;
+            return JSON.stringify({
+              inputs: q('input,select,textarea'),
+              password: q('input[type=password]'),
+              buttons: q('button,input[type=submit],input[type=button],[role=button]'),
+              links: q('a[href]'),
+              articles: q('article,[itemprop=articleBody],.article-content,main h1'),
+              videos: q('video,iframe[src*=youtube],iframe[src*=bilibili],iframe[src*=vimeo],[class*=player]'),
+              listItems: q('li'),
+              searchBox: q('input[type=search],input[placeholder*=搜],input[placeholder*=search],input[name*=search]'),
+              nav: q('nav,[role=navigation]'),
+              textLen: b ? b.innerText.length : 0
+            });
+          } catch(e) { return '{}'; }
+        })();
+        """.trimIndent()
+
+    /**
+     * 生成「按语义哈希 ref 定位元素」的 JS 前置片段。
+     *
+     * 片段内声明两个变量供调用方使用：
+     * - `el` —— 首个匹配元素，未匹配时为 `null`；
+     * - `__apexHits` —— 全部匹配元素（供 `highlightJs` 这类需要逐个处理的场景）。
+     *
+     * ## 为什么不用 CSS 属性选择器拼 ref
+     *
+     * 若写成 `[data-apex-hash=<ref>]`，`<ref>` 会被 **CSS 解析器**二次解析：加引号则
+     * 值内含引号会提前闭合 CSS 字符串而使选择器语法错误（`querySelector` 直接抛
+     * `SyntaxError`，在 `rectByRefJs` 这类无 try/catch 的路径上会一路冒泡成
+     * `ElementNotFoundException` 并**打开熔断器**）；不加引号则任何含空格 / `]` /
+     * `"` 的 ref 都构成非法标识符。
+     *
+     * 改为「取出全部带标记的元素 → 在 JS 内用 `===` 严格比较属性值」后，
+     * ref 全程只是 [JsLiteral.string] 编码出的 JS 字符串，**不经过 CSS 解析**：
+     * 既无注入面，也不会因畸形 ref 抛错（未命中即 `el === null`，语义干净）。
+     */
+    private fun refLookupJs(ref: String): String =
+        """
+        var __apexRef = ${JsLiteral.string(ref)};
+        var __apexHits = [];
+        var __apexMarked = document.querySelectorAll('[data-apex-hash]');
+        for (var __apexI = 0; __apexI < __apexMarked.length; __apexI++) {
+          if (__apexMarked[__apexI].getAttribute('data-apex-hash') === __apexRef) { __apexHits.push(__apexMarked[__apexI]); }
+        }
+        var el = __apexHits.length ? __apexHits[0] : null;
+        """.trimIndent()
+
     /** 物理触摸注入：返回元素在**屏幕坐标系**中的中心点（含 WebView 自身偏移），失败返回 null */
     fun rectByRefJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs(ref)}
-          var el = __apexFirst;
+          ${refLookupJs(ref)}
           if (!el) return JSON.stringify(null);
           var r = el.getBoundingClientRect();
           return JSON.stringify({ x: r.left + r.width/2, y: r.top + r.height/2,
@@ -188,52 +267,110 @@ object BrowserScript {
         })();
         """.trimIndent()
 
-    /** 等待目标 CSS 选择器出现（用于 navigate 的 wait_for 参数），超时由 Kotlin 层控制 */
-    fun waitForSelectorJs(selector: String): String =
-        """
-        (function(){
-          return new Promise(function(resolve){
-            var el = document.querySelector(${selector.toJsonString()});
-            if (el) return resolve(true);
-            var t = setInterval(function(){
-              var e = document.querySelector(${selector.toJsonString()});
-              if (e){ clearInterval(t); resolve(true); }
-            }, 200);
-            setTimeout(function(){ clearInterval(t); resolve(false); }, 10000);
-          });
-        })();
-        """.trimIndent()
-
     /** 下拉选择：按 value 或可见文本设置 <select> 并触发 change */
     fun selectJs(ref: String, value: String, byText: Boolean): String {
         val match = if (byText) "opt.text" else "opt.value"
         return """
         (function(){
-          ${refHitsJs(ref)}
-          var el = __apexFirst;
+          ${refLookupJs(ref)}
           if (!el || el.tagName !== 'SELECT') return false;
           var opts = el.options;
           for (var i=0;i<opts.length;i++){
             var opt = opts[i];
-            if (($match) === ${value.toJsonString()}){ el.selectedIndex = i; el.dispatchEvent(new Event('change',{bubbles:true})); return true; }
+            if (($match) === ${JsLiteral.string(value)}){ el.selectedIndex = i; el.dispatchEvent(new Event('change',{bubbles:true})); return true; }
           }
           return false;
         })();
         """
     }
 
-    /** 高亮指定 ref 对应的元素（调试 / 可视化；v1.1.0：ref 走统一转义） */
+    /**
+     * 高亮指定 ref 对应的元素（调试 / 可视化）。
+     *
+     * [ref] 与 [color] 均经 [JsLiteral.string] 编码 —— 旧实现用 `"$ref"` / `$color`
+     * 原样插值进双引号属性选择器与单引号样式串，两种定界符都可被闭合。
+     */
     fun highlightJs(ref: String, color: String = "#1e90ff"): String =
         """
         (function(){
-          ${refHitsJs(ref)}
-          var els = __apexHits;
-          for (var i=0;i<els.length;i++){ els[i].style.outline='2px solid ' + ${color.toJsonString()}; }
+          ${refLookupJs(ref)}
+          for (var i=0;i<__apexHits.length;i++){ __apexHits[i].style.outline='2px solid ' + ${JsLiteral.string(color)}; }
+          return __apexHits.length;
         })();
         """.trimIndent()
 
+    /**
+     * 文本输入：聚焦 → 赋值 → 派发 `input`/`change`（供 React/Vue 等受控组件感知）。
+     *
+     * 修复说明：原实现内联在 [com.apex.browser.engine.BrowserEngine.inputText] 中，
+     * 且自身手写了一套**与本库不一致**的转义（只处理 `'` 而漏换行），同时把 `ref` 按
+     * `\"` 转义却嵌在**单引号**属性选择器里 —— 转义与定界符错配，`ref` 含 `'` 即可闭合
+     * 选择器；裸换行则使整段 `evaluateJavascript` 变成语法错误，输入静默失效。
+     * 现统一收敛到本函数，ref 与 text 共用 [JsLiteral.string] 与 [refLookupJs]。
+     *
+     * （v1.1.0 起宿主侧 [BrowserEngine.inputText] 走 [setNativeValueJs] 的
+     * 原型链安全写值路径；本函数保留为简单赋值形态，供轻量场景/单测使用。）
+     */
+    fun inputTextJs(ref: String, text: String): String =
+        """
+        (function(){
+          ${refLookupJs(ref)}
+          if (!el) return false;
+          el.focus();
+          el.value = ${JsLiteral.string(text)};
+          el.dispatchEvent(new Event('input', {bubbles:true}));
+          el.dispatchEvent(new Event('change', {bubbles:true}));
+          return true;
+        })();
+        """.trimIndent()
+
+    /**
+     * 同步探测目标 CSS 选择器是否存在（单次查询，**无 Promise**）。
+     *
+     * 修复说明：旧实现（`waitForSelectorJs`）返回一个 `Promise`，并靠 `setInterval`
+     * 在页面侧轮询。但 `WebView.evaluateJavascript` 的回调**不等待 Promise** ——
+     * 页面侧刚 `resolve` 时回调早已以 `null` 返回（`evaluateJson` 落到默认值 `"null"`）。
+     * 于是 `waitForSelectorOnPage` 恒得 `"null" != "true"` → **`selectorFound` 永远为
+     * false**，`browser_navigate` 的 `wait_for` 参数形同虚设。
+     *
+     * 现改为同步单次探测，真正的「等待」由 Kotlin 侧轮询承担
+     * （`BrowserEngine.waitForCondition` / `waitForSelectorOnPage` 已是此模式）。
+     * [selector] 经 [JsLiteral.string] 编码 —— 旧实现两处插值同一未转义串，
+     * 致使 `input[placeholder='搜索']` 这类常见选择器变成 JS 语法错误。
+     */
+    fun selectorPresentJs(selector: String): String =
+        """
+        (function(){ try { return !!document.querySelector(${JsLiteral.string(selector)}); }
+        catch(e){ return false; } })();
+        """.trimIndent()
+
+    /** 可见文本包含检查（`body.innerText`；`textContent` 回退覆盖无 innerText 的场景） */
+    fun textContainsJs(text: String): String =
+        """
+        (function(){ try { var b=document.body;
+          if (!b) return false;
+          var s = b.innerText || b.textContent || '';
+          return s.indexOf(${JsLiteral.string(text)}) >= 0; }
+        catch(e){ return false; } })();
+        """.trimIndent()
+
+    /** 滚动指定像素（正向下 / 负向上），同步返回 true */
+    fun scrollByJs(deltaY: Int): String =
+        "(function(){ try { window.scrollBy(0, ${deltaY.coerceIn(-MAX_SCROLL_PX, MAX_SCROLL_PX)}); return true; } catch(e){ return false; } })();"
+
+    /** 读取网络监控日志尾部 [limit] 条（配合 [NETWORK_MONITOR_JS]） */
+    fun networkLogJs(limit: Int): String =
+        "JSON.stringify((window.__apexNetLog||[]).slice(-${limit.coerceIn(1, MAX_NETWORK_LOG_ENTRIES)}))"
+
+    /** 单次滚动像素上限（防 Agent 传入超大 delta 造成长阻塞滚动） */
+    const val MAX_SCROLL_PX: Int = 20_000
+
+    /** 网络日志回传条数上限（[NETWORK_MONITOR_JS] 侧缓冲上限亦为此值） */
+    const val MAX_NETWORK_LOG_ENTRIES: Int = 200
+
     // ═══════════════════════════════════════════════════════════════════
     //  v1.1.0 高级能力脚本（错误率削减 + 动作空间扩展）
+    //  rebase 注：自 main 的 v1.1.0 系列移植，插值统一改走 JsLiteral/refLookupJs。
     // ═══════════════════════════════════════════════════════════════════
 
     /**
@@ -246,8 +383,7 @@ object BrowserScript {
     fun scrollIntoViewAndRectJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs(ref)}
-          var el = __apexFirst;
+          ${refLookupJs(ref)}
           if (!el) return JSON.stringify(null);
           el.scrollIntoView({block:'center', inline:'nearest'});
           var r = el.getBoundingClientRect();
@@ -264,18 +400,20 @@ object BrowserScript {
      * 返回该元素的 data-apex-hash 与 tag（无 hash 则打上临时标记），
      * 以及它是否为目标 ref 元素自身或其后代。粘性顶栏 / 模态遮罩
      * 拦截触摸时，据此给出「被遮挡」的明确失败原因而不是静默误点。
+     *
+     * rebase 注：原版先取 elementFromPoint 存 `el`，再用 `__apexFirst` 存目标；
+     * [refLookupJs] 复用 `el` 名，故命中元素改名 `__apexHit`（语义不变）。
      */
     fun elementAtPointJs(x: Float, y: Float, targetRef: String): String =
         """
         (function(){
-          var el = document.elementFromPoint($x, $y);
-          if (!el) return JSON.stringify({ hit: false });
-          ${refHitsJs(targetRef)}
-          var target = __apexFirst;
-          var isTargetOrChild = !!(target && (el === target || target.contains(el)));
-          var h = el.getAttribute('data-apex-hash');
-          if (!h) { h = 'hit_' + Math.abs((el.tagName + '|' + (el.innerText||'').slice(0,40)).split('').reduce(function(a,c){return ((a<<5)-a)+c.charCodeAt(0)|0;},0)).toString(36); el.setAttribute('data-apex-hash', h); }
-          return JSON.stringify({ hit: true, hash: h, tag: el.tagName, isTargetOrChild: isTargetOrChild });
+          var __apexHit = document.elementFromPoint($x, $y);
+          if (!__apexHit) return JSON.stringify({ hit: false });
+          ${refLookupJs(targetRef)}
+          var isTargetOrChild = !!(el && (__apexHit === el || el.contains(__apexHit)));
+          var h = __apexHit.getAttribute('data-apex-hash');
+          if (!h) { h = 'hit_' + Math.abs((__apexHit.tagName + '|' + (__apexHit.innerText||'').slice(0,40)).split('').reduce(function(a,c){return ((a<<5)-a)+c.charCodeAt(0)|0;},0)).toString(36); __apexHit.setAttribute('data-apex-hash', h); }
+          return JSON.stringify({ hit: true, hash: h, tag: __apexHit.tagName, isTargetOrChild: isTargetOrChild });
         })();
         """.trimIndent()
 
@@ -290,8 +428,8 @@ object BrowserScript {
     fun locateByFuzzyJs(tag: String, textContains: String, newRef: String): String =
         """
         (function(){
-          var want = ${textContains.toJsonString()};
-          var tag = ${tag.toJsonString()};
+          var want = ${JsLiteral.string(textContains)};
+          var tag = ${JsLiteral.string(tag)};
           var nodes = document.querySelectorAll(tag);
           var best = null, bestLen = Infinity;
           for (var i=0;i<nodes.length;i++){
@@ -306,9 +444,9 @@ object BrowserScript {
             if (t.length < bestLen) { best = el; bestLen = t.length; }
           }
           if (!best) return JSON.stringify(null);
-          best.setAttribute('data-apex-hash', ${newRef.toJsonString()});
+          best.setAttribute('data-apex-hash', ${JsLiteral.string(newRef)});
           var r = best.getBoundingClientRect();
-          return JSON.stringify({ ref: ${newRef.toJsonString()}, tag: best.tagName,
+          return JSON.stringify({ ref: ${JsLiteral.string(newRef)}, tag: best.tagName,
                                   text: (best.innerText||'').replace(/\s+/g,' ').trim().slice(0,120),
                                   x: r.left + r.width/2, y: r.top + r.height/2,
                                   left: r.left, top: r.top, width: r.width, height: r.height });
@@ -325,25 +463,24 @@ object BrowserScript {
      * 2. contenteditable 走 textContent / execCommand 兜底；
      * 3. 派发 input + change 事件（bubbles）；
      * 4. append 模式在现值后追加而非替换。
-     * 换行文本经 Kotlin 层转义为 \n 字面量，多行输入不再撕裂 JS 字符串。
+     * 换行文本经 [JsLiteral.string] 转义为 \n 字面量，多行输入不再撕裂 JS 字符串。
      */
     fun setNativeValueJs(ref: String, text: String, append: Boolean): String =
         """
         (function(){
-          ${refHitsJs(ref)}
-          var el = __apexFirst;
+          ${refLookupJs(ref)}
           if (!el) return JSON.stringify({ ok: false, reason: 'not_found' });
           el.focus();
           var ok = true, reason = '';
           if (el.isContentEditable) {
-            if (document.execCommand) { document.execCommand('selectAll', false, null); document.execCommand('insertText', false, ${text.toJsonString()}); }
-            else el.textContent = ${text.toJsonString()};
-            el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:${text.toJsonString()}}));
+            if (document.execCommand) { document.execCommand('selectAll', false, null); document.execCommand('insertText', false, ${JsLiteral.string(text)}); }
+            else el.textContent = ${JsLiteral.string(text)};
+            el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:${JsLiteral.string(text)}}));
           } else if (typeof el.value === 'string' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
             var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
             var desc = Object.getOwnPropertyDescriptor(proto, 'value');
             var cur = desc && desc.get ? desc.get.call(el) : el.value;
-            var next = ${if (append) "(cur || '') + ${text.toJsonString()}" else text.toJsonString()};
+            var next = ${if (append) "(cur || '') + ${JsLiteral.string(text)}" else JsLiteral.string(text)};
             if (desc && desc.set) desc.set.call(el, next); else el.value = next;
             el.dispatchEvent(new Event('input', {bubbles:true}));
             el.dispatchEvent(new Event('change', {bubbles:true}));
@@ -377,7 +514,7 @@ object BrowserScript {
         return """
         (function(){
           var target = document.activeElement || document.body;
-          var key = ${jsKey.toJsonString()}, code = ${code.toJsonString()}, kc = $keyCode;
+          var key = ${JsLiteral.string(jsKey)}, code = ${JsLiteral.string(code)}, kc = $keyCode;
           function fire(type, ctor){ var e; try { e = new ctor(type, {key:key, code:code, keyCode:kc, which:kc, bubbles:true, cancelable:true}); } catch(err){ e = document.createEvent('KeyboardEvent'); e.initKeyboardEvent(type, true, true, null, key, kc); } target.dispatchEvent(e); return e; }
           var kd = fire('keydown', KeyboardEvent);
           if (!kd.defaultPrevented) {
@@ -396,8 +533,7 @@ object BrowserScript {
     fun hoverJs(ref: String): String =
         """
         (function(){
-          ${refHitsJs(ref)}
-          var el = __apexFirst;
+          ${refLookupJs(ref)}
           if (!el) return false;
           var r = el.getBoundingClientRect();
           var opts = { bubbles: true, cancelable: true, clientX: r.left + r.width/2, clientY: r.top + r.height/2 };
@@ -426,7 +562,7 @@ object BrowserScript {
         }
         return """
         (function(){
-          var mode = ${m.toJsonString()};
+          var mode = ${JsLiteral.string(m)};
           function txt(el, cap){ return (el && (el.innerText || el.textContent) || '').replace(/\s+/g,' ').trim().slice(0, cap || 20000); }
           if (mode === 'meta') {
             function meta(n){ var el = document.querySelector('meta[property="'+n+'"], meta[name="'+n+'"]'); return el ? (el.getAttribute('content')||'') : ''; }
@@ -483,61 +619,5 @@ object BrowserScript {
     /** 内容抽取模式。 */
     enum class ExtractMode(val value: String) {
         ARTICLE("article"), TABLES("tables"), LINKS("links"), META("meta")
-    }
-}
-
-/**
- * 生成「按语义哈希 ref 定位元素」的 JS 前置片段：声明 `__apexHits`（全部匹配元素）。
- *
- * ## 为什么不能把 ref 拼进 CSS 属性选择器
- *
- * 旧形态 `querySelector('[data-apex-hash=${ref.toJsonString()}]')` 有两个同时存在的故障：
- *  1. **双重引号** —— 模板自带单引号，而转义函数又套一层单引号，两者不匹配直接报语法错误。
- *     生成 `document.querySelector('[data-apex-hash='r_3k9f']')` —— 对**任何** ref 都是语法错误，
- *     因此 click / input / select 完全无法工作。
- *  2. **可注入** —— 由于转义已正确跳过引号，但注入载荷**不需要任何引号字符**即可脱离：
- *     `ref = "+alert(document.cookie)+"` 生成
- *     `document.querySelector('[data-apex-hash='+alert(document.cookie)+']')`
- *     —— 合法 JS，页内任意代码执行。
- *
- * 改为「取全部带标记元素 → 在 JS 内用 === 严格比较属性值」后，ref 全程只是一个 JS
- * 字符串，**不经过 CSS 解析**：无注入面，也不会因畸形 ref 抛错。
- */
-private fun refHitsJs(ref: String): String =
-    """
-        var __apexHits = [];
-        var __apexMarked = document.querySelectorAll('[data-apex-hash]');
-        for (var __apexI = 0; __apexI < __apexMarked.length; __apexI++) {
-          if (__apexMarked[__apexI].getAttribute('data-apex-hash') === ${ref.toJsonString()}) { __apexHits.push(__apexMarked[__apexI]); }
-        }
-        var __apexFirst = __apexHits.length ? __apexHits[0] : null;
-    """.trimIndent()
-
-/** 把字符串安全包成 JS 单引号字面量（v1.1.0 修复：此前零转义）
- *
- * 旧实现 `"'$this'"` 不做任何转义：ref / selector / value 含单引号、换行或
- * 反斜杠时生成的 JS 直接语法报错——CSS 属性选择器 `[href='foo']` 是 Agent
- * 常用形态， waitForSelectorJs 一直在这种输入下静默失败（evaluateJavascript
- * 返回 null → 上层报「超时」而非真实原因）。
- * 现在转义：反斜杠、单/双引号、换行、回车、行/段分隔符、</ 序列。
- */
-private fun String.toJsonString(): String {
-    // 预处理：防 </script> 提前闭合（WebView 内联脚本上下文的防御性转义）
-    val src = this.replace("</", "<\\/")
-    return buildString {
-        append('\'')
-        for (c in src) {
-            when (c) {
-                '\\' -> append("\\\\")
-                '\'' -> append("\\'")
-                '"' -> append("\\\"")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\u2028' -> append("\\u2028")
-                '\u2029' -> append("\\u2029")
-                else -> append(c)
-            }
-        }
-        append('\'')
     }
 }

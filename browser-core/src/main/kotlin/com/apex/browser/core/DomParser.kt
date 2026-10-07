@@ -172,7 +172,13 @@ object DomParser {
             sb.appendLine(line)
             total += line.length + 1
         }
-        if (hidden > 0) sb.appendLine("  …折叠 $hidden 个低优先级元素（用 browser_dump 查看全部）")
+        if (hidden > 0) {
+            // 意图：这是直接进 prompt 的模型可见文案，绝不能让模型去调用不存在的工具。
+            // 旧实现写「用 browser_dump 查看全部」，而浏览器工具集里并无 browser_dump
+            // （真实工具是宿主侧的 browser_debug_dump，且它导出的是 trace 而非元素）。
+            // 折叠的元素仍完整保留在 interactiveElements 中，故据实说明即可。
+            sb.appendLine("  …折叠 $hidden 个低优先级元素（完整列表见 interactiveElements，可调大 token_budget 重抓）")
+        }
         return sb.toString().trimEnd()
     }
 
