@@ -192,6 +192,25 @@ CodeQL 里所有 WebView 相关查询（`websettings-file-access`、
 `dependency-submission.yml` 另把 Gradle 解析结果喂给 GitHub 依赖图，
 使 Dependabot 能对**传递依赖**告警（消费方通过我们的坐标间接依赖它们）。
 
+### 宿主自动同步链路（v1.1.0 起）
+
+本仓库 main 的每次合入都会**自动流入宿主** [Android-Guru-Agent]，全程无人工：
+
+```
+本仓库 push main
+  → notify-host.yml 等待本提交 CI + Guard Rails 全绿（口径见下）
+  → repository_dispatch 宿主（event: browser-kit-updated，HOST_SYNC_TOKEN）
+  → 宿主 sync-browser-kit.yml 校验上游门禁全绿后 bump gradle/browser-kit.lock
+    （PAT 推送 —— GITHUB_TOKEN 推送不触发 workflow，防递归设计）
+  → push main 自动点燃宿主 release 流水线 → 新 APK（含本仓库最新代码）发布
+```
+
+门禁口径（双侧一致）：只统计**构建健康**类 check-run（CI 的 Build & Test /
+Consumer Check + Guard Rails 全套）；显式排除 Dependabot*（长跑依赖升级）、
+Gradle dependency graph（数据洞察链路）、notify-host 自身（自引用）。上游有
+失败项时宿主**拒绝同步并显性报错**（fail loud），绝不跟红。另有宿主侧 30 分钟
+cron 轮询兜底（防丢事件），`gradle/browser-kit.lock` 保证宿主构建可复现。
+
 ### 本地复现
 
 ```bash
