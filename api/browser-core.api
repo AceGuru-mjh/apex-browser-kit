@@ -1,5 +1,6 @@
 # Public API surface of :browser-core - COMMITTED BASELINE.
 # Regenerate only with `python scripts/check_api_surface.py --update-baseline` and review the diff.
+browser-core :: class BrowserScript.ExtractMode(val value: String)
 browser-core :: class CircuitBreaker(private val failureThreshold: Int = 5, private val resetTimeoutMs: Long = 30_000,)
 browser-core :: class CircuitBreaker.State
 browser-core :: class CircuitOpenException(message: String) : Exception(message)
@@ -11,13 +12,20 @@ browser-core :: class PageSnapshot(val url: String, val title: String, val scrol
 browser-core :: class Rect(val x: Int, val y: Int, val width: Int, val height: Int)
 browser-core :: class RetryPolicy(val maxRetries: Int = 3, val initialDelayMs: Long = 500, val backoffMultiplier: Double = 2.0, val maxDelayMs: Long = 5000, val retryableExceptions: Set<Class<out Throwable>> = setOf(ElementNotFoundException::class.java, java.util.concurrent.TimeoutException::class.java, WebViewNotRespondingException::class.java,),)
 browser-core :: class WebViewNotRespondingException(message: String) : Exception(message)
+browser-core :: fun BrowserScript.elementAtPointJs(x: Float, y: Float, targetRef: String): String
+browser-core :: fun BrowserScript.extractContentJs(mode: String): String
 browser-core :: fun BrowserScript.highlightJs(ref: String, color: String =): String
+browser-core :: fun BrowserScript.hoverJs(ref: String): String
 browser-core :: fun BrowserScript.inputTextJs(ref: String, text: String): String
+browser-core :: fun BrowserScript.locateByFuzzyJs(tag: String, textContains: String, newRef: String): String
 browser-core :: fun BrowserScript.networkLogJs(limit: Int): String
+browser-core :: fun BrowserScript.pressKeyJs(key: String): String
 browser-core :: fun BrowserScript.rectByRefJs(ref: String): String
 browser-core :: fun BrowserScript.scrollByJs(deltaY: Int): String
+browser-core :: fun BrowserScript.scrollIntoViewAndRectJs(ref: String): String
 browser-core :: fun BrowserScript.selectJs(ref: String, value: String, byText: Boolean): String
 browser-core :: fun BrowserScript.selectorPresentJs(selector: String): String
+browser-core :: fun BrowserScript.setNativeValueJs(ref: String, text: String, append: Boolean): String
 browser-core :: fun BrowserScript.snapshotJs(strategy: DomParser.SnapshotStrategy = DomParser.SnapshotStrategy.INTERACTIVE_ONLY): String
 browser-core :: fun BrowserScript.textContainsJs(text: String): String
 browser-core :: fun CircuitBreaker.acquire()
@@ -34,6 +42,8 @@ browser-core :: object DomParser
 browser-core :: object JsLiteral
 browser-core :: object PageClassifier
 browser-core :: val BrowserScript.A11Y_FALLBACK_JS : String
+browser-core :: val BrowserScript.CURRENT_URL_JS : String
+browser-core :: val BrowserScript.ExtractMode.value : String
 browser-core :: val BrowserScript.MAX_NETWORK_LOG_ENTRIES : Int
 browser-core :: val BrowserScript.MAX_SCROLL_PX : Int
 browser-core :: val BrowserScript.NETWORK_MONITOR_JS : String

@@ -5,7 +5,7 @@ browser-engine :: class BrowserEngine.BrowserSessionState
 browser-engine :: class BrowserEngine.DownloadRecord(val fileName: String, val url: String, val downloadId: Long,)
 browser-engine :: class BrowserEngine.HandoffLockedException(message: String) : IllegalStateException(message)
 browser-engine :: class BrowserEngine.NavResult(val success: Boolean, val selectorFound: Boolean, val timedOut: Boolean)
-browser-engine :: class BrowserEngine.PostActionState(val success: Boolean, val urlChanged: Boolean = false, val newElementsCount: Int = 0, val pageTitle: String =, val scrollY: Int = 0, val failReason: String? = null,)
+browser-engine :: class BrowserEngine.PostActionState(val success: Boolean, val urlChanged: Boolean = false, val newElementsCount: Int = 0, val pageTitle: String =, val scrollY: Int = 0, val failReason: String? = null, val currentUrl: String =,)
 browser-engine :: class BrowserEngine.ScrollResult(val scrolled: Boolean, val newElementsDetected: Int = 0)
 browser-engine :: class BrowserEngine.Tab(val id: Int, val webView: WebView, var title: String =, var url: String =, @Volatile var pageFinished: Boolean = false,)
 browser-engine :: class BrowserEngine.WaitOutcome(val matched: Boolean, val detail: String, val elapsedMs: Long)
@@ -23,30 +23,41 @@ browser-engine :: fun BrowserEngine.closeAllTabs()
 browser-engine :: fun BrowserEngine.closeTab(id: Int): Boolean
 browser-engine :: fun BrowserEngine.completeHandoff()
 browser-engine :: fun BrowserEngine.destroy()
+browser-engine :: fun BrowserEngine.drag(fromRef: String, toRef: String, steps: Int = 14): PostActionState
 browser-engine :: fun BrowserEngine.enterHandoffMode()
 browser-engine :: fun BrowserEngine.evaluateA11yJs(wv: WebView): String
 browser-engine :: fun BrowserEngine.evaluateBoolean(wv: WebView, js: String): Boolean
 browser-engine :: fun BrowserEngine.evaluateJson(wv: WebView, js: String): String
 browser-engine :: fun BrowserEngine.evaluateSnapshotJs(wv: WebView, strategy: DomParser.SnapshotStrategy): String
+browser-engine :: fun BrowserEngine.executeJavaScript(script: String, timeoutMs: Long = 8000): String?
+browser-engine :: fun BrowserEngine.extractContent(mode: BrowserScript.ExtractMode = BrowserScript.ExtractMode.ARTICLE,): String?
 browser-engine :: fun BrowserEngine.flushCookies()
-browser-engine :: fun BrowserEngine.getCenterInWebView(wv: WebView, ref: String): Pair<Float, Float>?
+browser-engine :: fun BrowserEngine.fuzzyRelocate(wv: WebView, ref: String): CssRect?
+browser-engine :: fun BrowserEngine.getCookies(url: String? = null): String?
 browser-engine :: fun BrowserEngine.goBack(): Boolean
 browser-engine :: fun BrowserEngine.goForward(): Boolean
-browser-engine :: fun BrowserEngine.inputText(ref: String, text: String): PostActionState
+browser-engine :: fun BrowserEngine.hover(ref: String): PostActionState
+browser-engine :: fun BrowserEngine.inputText(ref: String, text: String, append: Boolean = false, pressEnter: Boolean = false,): PostActionState
 browser-engine :: fun BrowserEngine.listTabs(): List<Pair<Int, String>>
+browser-engine :: fun BrowserEngine.locateElements(textContains: String, tag: String =, limit: Int = 10,): List<Map<String, String>>
 browser-engine :: fun BrowserEngine.navigate(url: String, waitForSelector: String? = null, timeoutMs: Long = 15000, onProgress: ((percent: Int, phase: String) -> Unit)? = null,): NavResult
-browser-engine :: fun BrowserEngine.networkLog(limit: Int = 50): List<Map<String, Any?>>
+browser-engine :: fun BrowserEngine.networkLog(limit: Int = 50, urlContains: String? = null,): List<Map<String, Any?>>
 browser-engine :: fun BrowserEngine.newTab(url: String? = null): Int
 browser-engine :: fun BrowserEngine.newTabImmediate(url: String?): Int
 browser-engine :: fun BrowserEngine.onTrimMemory(level: Int)
 browser-engine :: fun BrowserEngine.pageType(): PageTypeInfo
 browser-engine :: fun BrowserEngine.performMaintenance()
-browser-engine :: fun BrowserEngine.probePage(wv: WebView): PostActionState
+browser-engine :: fun BrowserEngine.pressKey(key: String): PostActionState
+browser-engine :: fun BrowserEngine.probePage(wv: WebView, before: QuickProbe? = null): PostActionState
+browser-engine :: fun BrowserEngine.queryCssRect(wv: WebView, ref: String): CssRect?
+browser-engine :: fun BrowserEngine.readElementAtPoint(wv: WebView, cssX: Float, cssY: Float, ref: String): Boolean?
+browser-engine :: fun BrowserEngine.readQuickProbe(wv: WebView): QuickProbe?
 browser-engine :: fun BrowserEngine.recentHistory(limit: Int): List<String>
 browser-engine :: fun BrowserEngine.releaseBrowser()
 browser-engine :: fun BrowserEngine.removeUiCallback(cb: BrowserUiCallback)
 browser-engine :: fun BrowserEngine.reportDialogForContext(text: String?)
 browser-engine :: fun BrowserEngine.reportDownload(fileName: String, url: String, dmId: Long)
+browser-engine :: fun BrowserEngine.resolveClickTarget(wv: WebView, ref: String): Pair<Float, Float>?
 browser-engine :: fun BrowserEngine.respondFileChooser(uri: android.net.Uri): Boolean
 browser-engine :: fun BrowserEngine.screenshot(onProgress: ((percent: Int, phase: String) -> Unit)? = null,): ByteArray?
 browser-engine :: fun BrowserEngine.scroll(deltaY: Int, waitForNewContent: Boolean = false, maxWaitMs: Long = 3000, onProgress: ((percent: Int, phase: String) -> Unit)? = null,): ScrollResult
@@ -79,6 +90,7 @@ browser-engine :: val BrowserEngine.DownloadRecord.url : String
 browser-engine :: val BrowserEngine.NavResult.selectorFound : Boolean
 browser-engine :: val BrowserEngine.NavResult.success : Boolean
 browser-engine :: val BrowserEngine.NavResult.timedOut : Boolean
+browser-engine :: val BrowserEngine.PostActionState.currentUrl : String
 browser-engine :: val BrowserEngine.PostActionState.failReason : String?
 browser-engine :: val BrowserEngine.PostActionState.newElementsCount : Int
 browser-engine :: val BrowserEngine.PostActionState.pageTitle : String
