@@ -182,6 +182,18 @@ class BrowserOverlay private constructor(
         // 父容器分发先于子 View，浮窗内任何按下（chrome/WebView）都会触发，无需包裹。
         val owner = OverlayLifecycleOwner()
         owner.performRestore()
+        // ═══ P0 崩溃修复（2026-10-07 诊断包 crash-1791356720968）════════════
+        // window recomposer 从「窗口根视图」（View.rootView）向上查
+        // ViewTreeLifecycleOwner——旧实现只设在 ComposeView 自己身上，
+        // ComposeView.onAttachedToWindow 时 root（TouchActivatingFrameLayout）
+        // 的查找链不可达 → 立即抛
+        // "ViewTreeLifecycleOwner not found from BrowserOverlay$TouchActivatingFrameLayout"。
+        // 修复：root / host / ComposeView 全链挂同一 owner——任何查找起点
+        // （root、host、ComposeView 及其子树）都能就近命中，行为不变。
+        root.setViewTreeLifecycleOwner(owner)
+        root.setViewTreeSavedStateRegistryOwner(owner)
+        host.setViewTreeLifecycleOwner(owner)
+        host.setViewTreeSavedStateRegistryOwner(owner)
         val compose = ComposeView(appContext).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
