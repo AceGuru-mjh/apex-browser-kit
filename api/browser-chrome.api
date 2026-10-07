@@ -1,0 +1,421 @@
+# Public API surface of :browser-chrome - COMMITTED BASELINE.
+# Regenerate only with `python scripts/check_api_surface.py --update-baseline` and review the diff.
+browser-chrome :: class AddressBarUi.Collapsed(val host: String, val pathQuery: String?, val isSecure: Boolean, val progress: Float?,) : AddressBarUi
+browser-chrome :: class AddressBarUi.Editing(val text: String, val suggestions: List<Suggestion>,) : AddressBarUi
+browser-chrome :: class AgentDialogPolicy(private val scope: CoroutineScope? = null, private val autoAcknowledgeAlerts: Boolean = true, private val confirmChoice: JsDialogChoice = JsDialogChoice.NEGATIVE, private val trustedConfirmHosts: Set<String> = emptySet(), private val answerPrompt: (suspend (JsDialogRequest) -> Pair<JsDialogChoice, String?>)? = null, private val onDecision: ((request: JsDialogRequest, choice: JsDialogChoice, promptValue: String?, byAgent: Boolean) -> Unit)? = null,) : (JsDialogRequest, suspend (JsDialogChoice, String?) -> Unit) -> Boolean
+browser-chrome :: class ApexChromeWiring(appContext: Context, private val engine: BrowserEngine,) : BrowserEngine.BrowserUiCallback
+browser-chrome :: class BrowserChromeController(private val gateway: BrowserEngineGateway, private val scripts: UserscriptRegistry? = null, val config: ChromeConfig = ChromeConfig(),)
+browser-chrome :: class BrowserEngineGatewayAdapter(private val commands: EngineCommands, private val appContext: Context, private val router: DialogRequestRouter, private val downloadBridge: ChromeDownloadManager, private val searchTemplate: String =, snapshotSource: Flow<EngineSnapshot>? = null, private val historySource: (suspend (query: String, limit: Int) -> List<HistoryEntry>)? = null,) : BrowserEngineGateway
+browser-chrome :: class BrowserOverlay private constructor(private val appContext: Context, private val engine: BrowserEngine, private val chromeWiring: ApexChromeWiring, private val visualHook: BrowserVisualHook? = null,) : BrowserEngine.BrowserUiCallback
+browser-chrome :: class ChainFindListener(private val view: WebView, private val sink: PageStateSink,) : WebView.FindListener
+browser-chrome :: class ChainWebChromeClient(private val router: DialogRequestRouter, private val sink: PageStateSink, private val delegate: WebChromeClient? = null,) : WebChromeClient()
+browser-chrome :: class ChainWebViewClient(private val sink: PageStateSink, private val delegate: WebViewClient? = null,) : WebViewClient()
+browser-chrome :: class ChromeConfig(val searchTemplate: String =, val homeUrl: String? = null, val undoGraceMillis: Long = 4_000L, val hideTabStripWhenSingle: Boolean = true, val maxSuggestions: Int = 8, val agentRoutingEnabled: Boolean = true,)
+browser-chrome :: class ChromeDownloadManager(private val context: Context, private val scope: CoroutineScope,) : android.webkit.DownloadListener
+browser-chrome :: class ChromeDownloadManager.Rec(val dmId: Long, val url: String, val mimeType: String?)
+browser-chrome :: class ChromeMenuAction.SetDesktopMode(val enabled: Boolean) : ChromeMenuAction
+browser-chrome :: class ChromePalette(val background: Color, val surface: Color, val surfaceGlass: Color, val accent: Color, val accentAlt: Color, val ok: Color, val warn: Color, val danger: Color, val textPrimary: Color, val textSecondary: Color, val stroke: Color, val stripBackground: Color,)
+browser-chrome :: class ChromeSheet
+browser-chrome :: class ChromeSnackBar(val message: String, val actionLabel: String? = null, val onAction: (() -> Unit)? = null,)
+browser-chrome :: class ChromeUiState(val address: AddressBarUi = AddressBarUi.Collapsed(, null, false, null), val tabs: List<TabCard> = emptyList(), val activeTabId: String? = null, val activeTab: TabCard? = null, val closingTabIds: Set<String> = emptySet(), val findBarVisible: Boolean = false, val findState: FindState? = null, val sheet: ChromeSheet? = null, val desktopMode: Boolean = false, val tabStripVisible: Boolean = false,)
+browser-chrome :: class ChromeWebChromeClient(private val router: DialogRequestRouter) : WebChromeClient()
+browser-chrome :: class DialogRequestRouter(private val grants: PermissionGrantStore? = null,)
+browser-chrome :: class DisplayUrl(val host: String, val pathQuery: String? = null,)
+browser-chrome :: class DownloadItem(val id: String, val fileName: String, val url: String, val mimeType: String? = null, val state: DownloadState = DownloadState.QUEUED, val bytesDownloaded: Long = 0L, val totalBytes: Long? = null, val speedBps: Long? = null,)
+browser-chrome :: class DownloadState
+browser-chrome :: class EngineSnapshot(val tabs: List<TabCard> = emptyList(), val activeTabId: String? = null, val findState: FindState? = null, val desktopMode: Boolean = false,)
+browser-chrome :: class FindState(val query: String, val activeMatch: Int, val totalMatches: Int,)
+browser-chrome :: class HistoryEntry(val url: String, val title: String, val lastVisitedAt: Long = 0L,)
+browser-chrome :: class InMemoryPermissionGrantStore : PermissionGrantStore
+browser-chrome :: class JsDialogBookkeeping
+browser-chrome :: class JsDialogChoice
+browser-chrome :: class JsDialogKind
+browser-chrome :: class JsDialogRequest(val id: String, val kind: JsDialogKind, val originHost: String, val message: String, val promptDefault: String? = null, val routing: JsDialogRouting = JsDialogRouting.HUMAN,)
+browser-chrome :: class JsDialogRouting
+browser-chrome :: class LivePageState(val url: String? = null, val title: String? = null, val isLoading: Boolean = false, val progress: Float = 0f, val canGoBack: Boolean = false, val canGoForward: Boolean = false,)
+browser-chrome :: class NeonChromeWiring(appContext: Context, private val tabOps: TabOperations? = null, searchTemplate: String =, scope: CoroutineScope? = null, private val userAgent: NeonUserAgent = NeonUserAgent(), private val historySource: (suspend (query: String, limit: Int) -> List<HistoryEntry>)? = null, grantStore: PermissionGrantStore? = null,) : PageStateSink
+browser-chrome :: class NeonUserAgent(val mobile: String? = null, val desktop: String = DEFAULT_DESKTOP_UA,)
+browser-chrome :: class PermissionDecision
+browser-chrome :: class PermissionRequest(val id: String, val resources: Set<WebPermissionResource>, val originHost: String,)
+browser-chrome :: class SharedPreferencesGrantStore(context: Context, preferencesName: String = DEFAULT_PREFS_NAME,) : PermissionGrantStore
+browser-chrome :: class Suggestion(val kind: SuggestionKind, val primary: String, val secondary: String? = null, val actionUrl: String? = null, val tabId: String? = null,)
+browser-chrome :: class SuggestionKind
+browser-chrome :: class TabCard(val id: String, val title: String, val url: String, val host: String, val isSecure: Boolean, val isLoading: Boolean, val progress: Float, val canGoBack: Boolean = false, val canGoForward: Boolean = false,)
+browser-chrome :: class TabIdentity(val id: String, val title: String? = null, val url: String? = null,)
+browser-chrome :: class TabSet(val tabs: List<TabIdentity> = emptyList(), val activeTabId: String? = null,)
+browser-chrome :: class Userscript(val id: String, val name: String, val matches: String, val enabled: Boolean,)
+browser-chrome :: class WebPermissionResource
+browser-chrome :: fun AgentDialogPolicy.invoke(request: JsDialogRequest, finish: suspend (JsDialogChoice, String?) -> Unit,): Boolean
+browser-chrome :: fun ApexChromeWiring.onStateChanged(state: BrowserEngine.BrowserSessionState, url: String?, title: String?,)
+browser-chrome :: fun ApexChromeWiring.resync()
+browser-chrome :: fun ApexChromeWiringFactory.get(appContext: Context, engine: BrowserEngine): ApexChromeWiring
+browser-chrome :: fun ApexChromeWiringFactory.reset()
+browser-chrome :: fun BrowserChrome(gateway: BrowserEngineGateway, modifier: Modifier = Modifier, config: ChromeConfig = ChromeConfig(), palette: ChromePalette = ChromePalette.neon(), scripts: UserscriptRegistry? = null, controller: BrowserChromeController = remember(gateway, config, scripts)
+browser-chrome :: fun BrowserChromeController.closeAll()
+browser-chrome :: fun BrowserChromeController.closeFindBar()
+browser-chrome :: fun BrowserChromeController.closeOthers()
+browser-chrome :: fun BrowserChromeController.closeSheet()
+browser-chrome :: fun BrowserChromeController.closeTab(tabId: String)
+browser-chrome :: fun BrowserChromeController.currentUrl(): String?
+browser-chrome :: fun BrowserChromeController.enterAddressEdit(initial: String? = null)
+browser-chrome :: fun BrowserChromeController.exitAddressEdit()
+browser-chrome :: fun BrowserChromeController.findNext()
+browser-chrome :: fun BrowserChromeController.findPrev()
+browser-chrome :: fun BrowserChromeController.goBack()
+browser-chrome :: fun BrowserChromeController.goForward()
+browser-chrome :: fun BrowserChromeController.handleBack(): Boolean
+browser-chrome :: fun BrowserChromeController.newTab()
+browser-chrome :: fun BrowserChromeController.onAddressTextChanged(t: String)
+browser-chrome :: fun BrowserChromeController.onFindQueryChanged(q: String)
+browser-chrome :: fun BrowserChromeController.onMenuAction(action: ChromeMenuAction)
+browser-chrome :: fun BrowserChromeController.openExternal()
+browser-chrome :: fun BrowserChromeController.openFindBar()
+browser-chrome :: fun BrowserChromeController.openSheet(s: ChromeSheet)
+browser-chrome :: fun BrowserChromeController.pasteAndGo()
+browser-chrome :: fun BrowserChromeController.pickSuggestion(s: Suggestion)
+browser-chrome :: fun BrowserChromeController.reload()
+browser-chrome :: fun BrowserChromeController.selectTab(tabId: String)
+browser-chrome :: fun BrowserChromeController.showSnack(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null,)
+browser-chrome :: fun BrowserChromeController.start(scope: kotlinx.coroutines.CoroutineScope)
+browser-chrome :: fun BrowserChromeController.stop()
+browser-chrome :: fun BrowserChromeController.stopLoading()
+browser-chrome :: fun BrowserChromeController.submitAddress(raw: String)
+browser-chrome :: fun BrowserChromeController.toggleDesktopMode()
+browser-chrome :: fun BrowserChromeController.undoClose(tabId: String)
+browser-chrome :: fun BrowserEngineGateway.cancelDownload(id: String)
+browser-chrome :: fun BrowserEngineGateway.clearFindMatches()
+browser-chrome :: fun BrowserEngineGateway.clipboardUrlOrNull(): String?
+browser-chrome :: fun BrowserEngineGateway.closeAllTabs()
+browser-chrome :: fun BrowserEngineGateway.closeTab(tabId: String)
+browser-chrome :: fun BrowserEngineGateway.findInPage(query: String, forward: Boolean)
+browser-chrome :: fun BrowserEngineGateway.goBack()
+browser-chrome :: fun BrowserEngineGateway.goForward()
+browser-chrome :: fun BrowserEngineGateway.loadUrl(url: String)
+browser-chrome :: fun BrowserEngineGateway.newTab(url: String?): String
+browser-chrome :: fun BrowserEngineGateway.openDownload(id: String)
+browser-chrome :: fun BrowserEngineGateway.openInExternalBrowser(url: String)
+browser-chrome :: fun BrowserEngineGateway.queryHistory(query: String, limit: Int): List<HistoryEntry>
+browser-chrome :: fun BrowserEngineGateway.reload()
+browser-chrome :: fun BrowserEngineGateway.resolveDialog(requestId: String, choice: JsDialogChoice, promptValue: String? = null, routeToAgent: Boolean = false,)
+browser-chrome :: fun BrowserEngineGateway.resolvePermission(requestId: String, decision: PermissionDecision)
+browser-chrome :: fun BrowserEngineGateway.retryDownload(id: String)
+browser-chrome :: fun BrowserEngineGateway.revokeRememberedGrants(originHost: String)
+browser-chrome :: fun BrowserEngineGateway.search(query: String)
+browser-chrome :: fun BrowserEngineGateway.setDesktopMode(enabled: Boolean)
+browser-chrome :: fun BrowserEngineGateway.stopLoading()
+browser-chrome :: fun BrowserEngineGateway.switchTab(tabId: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.cancelDownload(id: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.clearFindMatches()
+browser-chrome :: fun BrowserEngineGatewayAdapter.clipboardUrlOrNull(): String?
+browser-chrome :: fun BrowserEngineGatewayAdapter.closeAllTabs()
+browser-chrome :: fun BrowserEngineGatewayAdapter.closeTab(tabId: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.findInPage(query: String, forward: Boolean)
+browser-chrome :: fun BrowserEngineGatewayAdapter.goBack()
+browser-chrome :: fun BrowserEngineGatewayAdapter.goForward()
+browser-chrome :: fun BrowserEngineGatewayAdapter.loadUrl(url: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.newTab(url: String?): String
+browser-chrome :: fun BrowserEngineGatewayAdapter.openDownload(id: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.openInExternalBrowser(url: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.publishSnapshot(snapshot: EngineSnapshot)
+browser-chrome :: fun BrowserEngineGatewayAdapter.queryHistory(query: String, limit: Int): List<HistoryEntry>
+browser-chrome :: fun BrowserEngineGatewayAdapter.release()
+browser-chrome :: fun BrowserEngineGatewayAdapter.reload()
+browser-chrome :: fun BrowserEngineGatewayAdapter.resolveDialog(requestId: String, choice: JsDialogChoice, promptValue: String?, routeToAgent: Boolean,)
+browser-chrome :: fun BrowserEngineGatewayAdapter.resolvePermission(requestId: String, decision: PermissionDecision)
+browser-chrome :: fun BrowserEngineGatewayAdapter.retryDownload(id: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.revokeRememberedGrants(originHost: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.search(query: String)
+browser-chrome :: fun BrowserEngineGatewayAdapter.setDesktopMode(enabled: Boolean)
+browser-chrome :: fun BrowserEngineGatewayAdapter.stopLoading()
+browser-chrome :: fun BrowserEngineGatewayAdapter.switchTab(tabId: String)
+browser-chrome :: fun BrowserOverlay.hide()
+browser-chrome :: fun BrowserOverlay.onStateChanged(state: BrowserEngine.BrowserSessionState, url: String?, title: String?,)
+browser-chrome :: fun BrowserOverlay.show()
+browser-chrome :: fun BrowserOverlayFactory.get(context: Context, engine: BrowserEngine, wiring: ApexChromeWiring, visualHook: BrowserVisualHook? = null,): BrowserOverlay
+browser-chrome :: fun BrowserOverlayFactory.reset()
+browser-chrome :: fun BrowserVisualHook.onAgentDrivingStarted()
+browser-chrome :: fun BrowserVisualHook.onSessionHidden()
+browser-chrome :: fun BrowserVisualHook.onWaitingHuman()
+browser-chrome :: fun ChainFindListener.onFindResultReceived(activeMatchOrdinal: Int, numberOfMatches: Int, isDoneCounting: Boolean)
+browser-chrome :: fun ChainWebChromeClient.getVideoLoadingProgressView(): View?
+browser-chrome :: fun ChainWebChromeClient.getVisitedHistory(callback: ValueCallback<Array<String>>?)
+browser-chrome :: fun ChainWebChromeClient.onCloseWindow(window: WebView?)
+browser-chrome :: fun ChainWebChromeClient.onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean
+browser-chrome :: fun ChainWebChromeClient.onConsoleMessage(message: String?, lineNumber: Int, sourceID: String?)
+browser-chrome :: fun ChainWebChromeClient.onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?,): Boolean
+browser-chrome :: fun ChainWebChromeClient.onGeolocationPermissionsHidePrompt()
+browser-chrome :: fun ChainWebChromeClient.onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?)
+browser-chrome :: fun ChainWebChromeClient.onHideCustomView()
+browser-chrome :: fun ChainWebChromeClient.onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun ChainWebChromeClient.onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun ChainWebChromeClient.onJsPrompt(view: WebView?, url: String?, message: String?, defaultValue: String?, result: JsPromptResult,): Boolean
+browser-chrome :: fun ChainWebChromeClient.onPermissionRequest(request: PermissionRequest?)
+browser-chrome :: fun ChainWebChromeClient.onPermissionRequestCanceled(request: PermissionRequest?)
+browser-chrome :: fun ChainWebChromeClient.onProgressChanged(view: WebView?, newProgress: Int)
+browser-chrome :: fun ChainWebChromeClient.onReceivedIcon(view: WebView?, icon: Bitmap?)
+browser-chrome :: fun ChainWebChromeClient.onReceivedTitle(view: WebView?, title: String?)
+browser-chrome :: fun ChainWebChromeClient.onShowCustomView(view: View?, callback: CustomViewCallback?)
+browser-chrome :: fun ChainWebChromeClient.onShowFileChooser(webView: WebView?, filePathCallback: ValueCallback<Array<android.net.Uri>>?, fileChooserParams: FileChooserParams?,): Boolean
+browser-chrome :: fun ChainWebViewClient.doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean)
+browser-chrome :: fun ChainWebViewClient.onFormResubmission(view: WebView, dontResend: Message?, resend: Message?)
+browser-chrome :: fun ChainWebViewClient.onLoadResource(view: WebView, url: String?)
+browser-chrome :: fun ChainWebViewClient.onPageCommitVisible(view: WebView, url: String?)
+browser-chrome :: fun ChainWebViewClient.onPageFinished(view: WebView, url: String?)
+browser-chrome :: fun ChainWebViewClient.onPageStarted(view: WebView, url: String?, favicon: Bitmap?)
+browser-chrome :: fun ChainWebViewClient.onReceivedError(view: WebView, errorCode: Int, description: String?, failingUrl: String?)
+browser-chrome :: fun ChainWebViewClient.onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError)
+browser-chrome :: fun ChainWebViewClient.onReceivedHttpAuthRequest(view: WebView, handler: android.webkit.HttpAuthHandler, host: String?, realm: String?,)
+browser-chrome :: fun ChainWebViewClient.onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse)
+browser-chrome :: fun ChainWebViewClient.onReceivedLoginRequest(view: WebView, realm: String?, account: String?, args: String?)
+browser-chrome :: fun ChainWebViewClient.onReceivedSslError(view: WebView, handler: SslErrorHandler, error: android.net.http.SslError)
+browser-chrome :: fun ChainWebViewClient.onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean
+browser-chrome :: fun ChainWebViewClient.onSafeBrowsingHit(view: WebView, request: WebResourceRequest, errorType: Int, callback: android.webkit.SafeBrowsingResponse,)
+browser-chrome :: fun ChainWebViewClient.onScaleChanged(view: WebView?, oldScale: Float, newScale: Float)
+browser-chrome :: fun ChainWebViewClient.shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse?
+browser-chrome :: fun ChainWebViewClient.shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean
+browser-chrome :: fun ChainWebViewClient.shouldOverrideUrlLoading(view: WebView, url: String): Boolean
+browser-chrome :: fun ChromeBottomSheet(visible: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier, sheetContent: @Composable ColumnScope.() -> Unit,)
+browser-chrome :: fun ChromeDownloadManager.cancel(id: String)
+browser-chrome :: fun ChromeDownloadManager.onDownloadStart(url: String?, userAgent: String?, contentDisposition: String?, mimetype: String?, contentLength: Long,)
+browser-chrome :: fun ChromeDownloadManager.open(id: String)
+browser-chrome :: fun ChromeDownloadManager.retry(id: String)
+browser-chrome :: fun ChromeScrimDialog(onDismiss: () -> Unit, modifier: Modifier = Modifier, dismissOnScrimTap: Boolean = true, content: @Composable ColumnScope.() -> Unit,)
+browser-chrome :: fun ChromeWebChromeClient.onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun ChromeWebChromeClient.onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun ChromeWebChromeClient.onJsPrompt(view: WebView?, url: String?, message: String?, defaultValue: String?, result: JsPromptResult,): Boolean
+browser-chrome :: fun ChromeWebChromeClient.onPermissionRequest(request: PermissionRequest?)
+browser-chrome :: fun ColumnScope .SheetGrabBar(modifier: Modifier = Modifier)
+browser-chrome :: fun DialogRequestRouter.onGeolocationPermissionsHidden()
+browser-chrome :: fun DialogRequestRouter.onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback)
+browser-chrome :: fun DialogRequestRouter.onJsAlert(url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun DialogRequestRouter.onJsConfirm(url: String?, message: String?, result: JsResult): Boolean
+browser-chrome :: fun DialogRequestRouter.onJsPrompt(url: String?, message: String?, defaultValue: String?, result: JsPromptResult): Boolean
+browser-chrome :: fun DialogRequestRouter.onWebPermissionCanceled(request: PermissionRequest)
+browser-chrome :: fun DialogRequestRouter.onWebPermissionRequest(request: PermissionRequest)
+browser-chrome :: fun DialogRequestRouter.resolveDialog(requestId: String, choice: JsDialogChoice, promptValue: String?, routeToAgent: Boolean)
+browser-chrome :: fun DialogRequestRouter.resolvePermission(requestId: String, decision: PermissionDecision)
+browser-chrome :: fun DialogRequestRouter.revokeRememberedGrants(originHost: String)
+browser-chrome :: fun DownloadShelf(gateway: BrowserEngineGateway, controller: BrowserChromeController, modifier: Modifier = Modifier,)
+browser-chrome :: fun EngineCommands.clearFindMatches()
+browser-chrome :: fun EngineCommands.closeAllTabs()
+browser-chrome :: fun EngineCommands.closeTab(tabId: String)
+browser-chrome :: fun EngineCommands.findInPage(query: String, forward: Boolean)
+browser-chrome :: fun EngineCommands.goBack()
+browser-chrome :: fun EngineCommands.goForward()
+browser-chrome :: fun EngineCommands.loadUrl(url: String)
+browser-chrome :: fun EngineCommands.newTab(url: String?): String
+browser-chrome :: fun EngineCommands.reload()
+browser-chrome :: fun EngineCommands.setDesktopMode(enabled: Boolean)
+browser-chrome :: fun EngineCommands.stopLoading()
+browser-chrome :: fun EngineCommands.switchTab(tabId: String)
+browser-chrome :: fun InMemoryPermissionGrantStore.isGranted(originHost: String, resource: WebPermissionResource): Boolean
+browser-chrome :: fun InMemoryPermissionGrantStore.remember(originHost: String, resources: Set<WebPermissionResource>)
+browser-chrome :: fun InMemoryPermissionGrantStore.rememberedOrigins(): Map<String, Set<WebPermissionResource>>
+browser-chrome :: fun InMemoryPermissionGrantStore.revoke(originHost: String, resources: Set<WebPermissionResource>?)
+browser-chrome :: fun JsDialogBookkeeping.Replay.invoke(choice: JsDialogChoice, promptValue: String?)
+browser-chrome :: fun JsDialogBookkeeping.pendingCount(): Int
+browser-chrome :: fun JsDialogBookkeeping.resolve(requestId: String, choice: JsDialogChoice, promptValue: String?, routeToAgent: Boolean,)
+browser-chrome :: fun JsDialogBookkeeping.submit(kind: JsDialogKind, originHost: String, message: String, promptDefault: String?, replay: Replay,): String
+browser-chrome :: fun JsDialogHost(gateway: BrowserEngineGateway, config: ChromeConfig = ChromeConfig(),)
+browser-chrome :: fun NeonChromeWiring.bindActiveWebView(view: WebView, existingWebViewClient: WebViewClient? = null, existingWebChromeClient: WebChromeClient? = null,)
+browser-chrome :: fun NeonChromeWiring.onFindResult(view: WebView, activeMatchOrdinal: Int, numberOfMatches: Int, isDoneCounting: Boolean)
+browser-chrome :: fun NeonChromeWiring.onPageFinished(view: WebView, url: String?)
+browser-chrome :: fun NeonChromeWiring.onPageStarted(view: WebView, url: String?)
+browser-chrome :: fun NeonChromeWiring.onProgress(view: WebView, newProgress: Int)
+browser-chrome :: fun NeonChromeWiring.onTitle(view: WebView, title: String?)
+browser-chrome :: fun NeonChromeWiring.onUrlChanged(view: WebView, url: String?)
+browser-chrome :: fun NeonChromeWiring.publishTabList(tabs: List<TabIdentity>, activeTabId: String?)
+browser-chrome :: fun NeonChromeWiring.release()
+browser-chrome :: fun NeonChromeWiring.resync()
+browser-chrome :: fun NeonChromeWiring.revokeRememberedGrants(originHost: String)
+browser-chrome :: fun PageStateSink.onFindResult(view: WebView, activeMatchOrdinal: Int, numberOfMatches: Int, isDoneCounting: Boolean)
+browser-chrome :: fun PageStateSink.onPageFinished(view: WebView, url: String?)
+browser-chrome :: fun PageStateSink.onPageStarted(view: WebView, url: String?)
+browser-chrome :: fun PageStateSink.onProgress(view: WebView, newProgress: Int)
+browser-chrome :: fun PageStateSink.onTitle(view: WebView, title: String?)
+browser-chrome :: fun PageStateSink.onUrlChanged(view: WebView, url: String?)
+browser-chrome :: fun PermissionGate.applyDecision(store: PermissionGrantStore?, originHost: String, resources: Set<WebPermissionResource>, decision: PermissionDecision,)
+browser-chrome :: fun PermissionGate.autoGrantable(store: PermissionGrantStore?, originHost: String, resources: Set<WebPermissionResource>,): Boolean
+browser-chrome :: fun PermissionGrantStore.isGranted(originHost: String, resource: WebPermissionResource): Boolean
+browser-chrome :: fun PermissionGrantStore.remember(originHost: String, resources: Set<WebPermissionResource>)
+browser-chrome :: fun PermissionGrantStore.rememberedOrigins(): Map<String, Set<WebPermissionResource>>
+browser-chrome :: fun PermissionGrantStore.revoke(originHost: String, resources: Set<WebPermissionResource>? = null)
+browser-chrome :: fun PermissionRequestHost(gateway: BrowserEngineGateway)
+browser-chrome :: fun SharedPreferencesGrantStore.isGranted(originHost: String, resource: WebPermissionResource): Boolean
+browser-chrome :: fun SharedPreferencesGrantStore.remember(originHost: String, resources: Set<WebPermissionResource>)
+browser-chrome :: fun SharedPreferencesGrantStore.rememberedOrigins(): Map<String, Set<WebPermissionResource>>
+browser-chrome :: fun SharedPreferencesGrantStore.revoke(originHost: String, resources: Set<WebPermissionResource>?)
+browser-chrome :: fun SnapshotComposer.compose(tabSet: TabSet, live: LivePageState, findState: FindState? = null, desktopMode: Boolean = false,): EngineSnapshot
+browser-chrome :: fun SuggestionsBuilder.build(text: String, tabs: List<TabCard>, history: List<HistoryEntry>, clipboardUrl: String?, includeClipboard: Boolean, max: Int = 8, activeTabId: String? = null,): List<Suggestion>
+browser-chrome :: fun TabOperations.activeWebView(): WebView?
+browser-chrome :: fun TabOperations.closeAllTabs()
+browser-chrome :: fun TabOperations.closeTab(tabId: String)
+browser-chrome :: fun TabOperations.currentTabs(): TabSet
+browser-chrome :: fun TabOperations.newTab(url: String?): String
+browser-chrome :: fun TabOperations.switchTab(tabId: String)
+browser-chrome :: fun UnavailableUserscriptRegistry.setEnabled(id: String, enabled: Boolean)
+browser-chrome :: fun UrlUtils.hostOf(url: String): String
+browser-chrome :: fun UrlUtils.looksLikeUrl(raw: String?): Boolean
+browser-chrome :: fun UrlUtils.resolveInput(raw: String, searchTemplate: String): String
+browser-chrome :: fun UrlUtils.searchUrl(template: String, query: String): String
+browser-chrome :: fun UrlUtils.splitDisplay(url: String): DisplayUrl
+browser-chrome :: fun UserscriptRegistry.setEnabled(id: String, enabled: Boolean)
+browser-chrome :: interface AddressBarUi
+browser-chrome :: interface BrowserEngineGateway
+browser-chrome :: interface BrowserVisualHook
+browser-chrome :: interface ChromeMenuAction
+browser-chrome :: interface EngineCommands
+browser-chrome :: interface JsDialogBookkeeping.Replay
+browser-chrome :: interface PageStateSink
+browser-chrome :: interface PermissionGrantStore
+browser-chrome :: interface TabOperations
+browser-chrome :: interface UserscriptRegistry
+browser-chrome :: object ApexChromeWiringFactory
+browser-chrome :: object BrowserOverlayFactory
+browser-chrome :: object ChromeMenuAction.CloseAll : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.CloseOthers : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.CopyLink : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.Downloads : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.FindInPage : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.NewTab : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.OpenExternal : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.ShowTabs : ChromeMenuAction
+browser-chrome :: object ChromeMenuAction.Userscripts : ChromeMenuAction
+browser-chrome :: object PermissionGate
+browser-chrome :: object SnapshotComposer
+browser-chrome :: object SuggestionsBuilder
+browser-chrome :: object UnavailableUserscriptRegistry : UserscriptRegistry
+browser-chrome :: object UrlUtils
+browser-chrome :: val AddressBarUi.Collapsed.host : String
+browser-chrome :: val AddressBarUi.Collapsed.isSecure : Boolean
+browser-chrome :: val AddressBarUi.Collapsed.pathQuery : String?
+browser-chrome :: val AddressBarUi.Collapsed.progress : Float?
+browser-chrome :: val AddressBarUi.Editing.suggestions : List<Suggestion>
+browser-chrome :: val AddressBarUi.Editing.text : String
+browser-chrome :: val ApexChromeWiring.engineSessionState : StateFlow<BrowserEngine.BrowserSessionState>
+browser-chrome :: val ApexChromeWiring.gateway : BrowserEngineGateway get()
+browser-chrome :: val ApexChromeWiring.wiring : NeonChromeWiring
+browser-chrome :: val BrowserChromeController.config : ChromeConfig
+browser-chrome :: val BrowserChromeController.snacks
+browser-chrome :: val BrowserChromeController.ui : StateFlow<ChromeUiState>
+browser-chrome :: val BrowserEngineGateway.dialogRequests : StateFlow<List<JsDialogRequest>>
+browser-chrome :: val BrowserEngineGateway.downloads : StateFlow<List<DownloadItem>>
+browser-chrome :: val BrowserEngineGateway.permissionRequests : StateFlow<List<PermissionRequest>>
+browser-chrome :: val BrowserEngineGateway.state : StateFlow<EngineSnapshot>
+browser-chrome :: val BrowserEngineGatewayAdapter.dialogRequests : StateFlow<List<JsDialogRequest>>
+browser-chrome :: val BrowserEngineGatewayAdapter.downloads : StateFlow<List<DownloadItem>>
+browser-chrome :: val BrowserEngineGatewayAdapter.permissionRequests : StateFlow<List<PermissionRequest>>
+browser-chrome :: val BrowserEngineGatewayAdapter.state : StateFlow<EngineSnapshot>
+browser-chrome :: val ChromeConfig.agentRoutingEnabled : Boolean
+browser-chrome :: val ChromeConfig.hideTabStripWhenSingle : Boolean
+browser-chrome :: val ChromeConfig.homeUrl : String?
+browser-chrome :: val ChromeConfig.maxSuggestions : Int
+browser-chrome :: val ChromeConfig.searchTemplate : String
+browser-chrome :: val ChromeConfig.undoGraceMillis : Long
+browser-chrome :: val ChromeDownloadManager.Rec.dmId : Long
+browser-chrome :: val ChromeDownloadManager.Rec.mimeType : String?
+browser-chrome :: val ChromeDownloadManager.Rec.url : String
+browser-chrome :: val ChromeDownloadManager.downloads : StateFlow<List<DownloadItem>>
+browser-chrome :: val ChromeMenuAction.SetDesktopMode.enabled : Boolean
+browser-chrome :: val ChromePalette.accent : Color
+browser-chrome :: val ChromePalette.accentAlt : Color
+browser-chrome :: val ChromePalette.background : Color
+browser-chrome :: val ChromePalette.danger : Color
+browser-chrome :: val ChromePalette.ok : Color
+browser-chrome :: val ChromePalette.stripBackground : Color
+browser-chrome :: val ChromePalette.stroke : Color
+browser-chrome :: val ChromePalette.surface : Color
+browser-chrome :: val ChromePalette.surfaceGlass : Color
+browser-chrome :: val ChromePalette.textPrimary : Color
+browser-chrome :: val ChromePalette.textSecondary : Color
+browser-chrome :: val ChromePalette.warn : Color
+browser-chrome :: val ChromeSnackBar.actionLabel : String?
+browser-chrome :: val ChromeSnackBar.message : String
+browser-chrome :: val ChromeSnackBar.onAction : (() -> Unit)?
+browser-chrome :: val ChromeUiState.activeTab : TabCard?
+browser-chrome :: val ChromeUiState.activeTabId : String?
+browser-chrome :: val ChromeUiState.address : AddressBarUi
+browser-chrome :: val ChromeUiState.closingTabIds : Set<String>
+browser-chrome :: val ChromeUiState.desktopMode : Boolean
+browser-chrome :: val ChromeUiState.findBarVisible : Boolean
+browser-chrome :: val ChromeUiState.findState : FindState?
+browser-chrome :: val ChromeUiState.sheet : ChromeSheet?
+browser-chrome :: val ChromeUiState.tabStripVisible : Boolean
+browser-chrome :: val ChromeUiState.tabs : List<TabCard>
+browser-chrome :: val DialogRequestRouter.dialogRequests : StateFlow<List<JsDialogRequest>>
+browser-chrome :: val DialogRequestRouter.permissionRequests : StateFlow<List<ChromePermissionRequest>>
+browser-chrome :: val DisplayUrl.host : String
+browser-chrome :: val DisplayUrl.pathQuery : String?
+browser-chrome :: val DownloadItem.bytesDownloaded : Long
+browser-chrome :: val DownloadItem.fileName : String
+browser-chrome :: val DownloadItem.id : String
+browser-chrome :: val DownloadItem.mimeType : String?
+browser-chrome :: val DownloadItem.speedBps : Long?
+browser-chrome :: val DownloadItem.state : DownloadState
+browser-chrome :: val DownloadItem.totalBytes : Long?
+browser-chrome :: val DownloadItem.url : String
+browser-chrome :: val EngineSnapshot.activeTabId : String?
+browser-chrome :: val EngineSnapshot.desktopMode : Boolean
+browser-chrome :: val EngineSnapshot.findState : FindState?
+browser-chrome :: val EngineSnapshot.tabs : List<TabCard>
+browser-chrome :: val FindState.activeMatch : Int
+browser-chrome :: val FindState.query : String
+browser-chrome :: val FindState.totalMatches : Int
+browser-chrome :: val HistoryEntry.lastVisitedAt : Long
+browser-chrome :: val HistoryEntry.title : String
+browser-chrome :: val HistoryEntry.url : String
+browser-chrome :: val JsDialogBookkeeping.requests : StateFlow<List<JsDialogRequest>>
+browser-chrome :: val JsDialogRequest.id : String
+browser-chrome :: val JsDialogRequest.kind : JsDialogKind
+browser-chrome :: val JsDialogRequest.message : String
+browser-chrome :: val JsDialogRequest.originHost : String
+browser-chrome :: val JsDialogRequest.promptDefault : String?
+browser-chrome :: val JsDialogRequest.routing : JsDialogRouting
+browser-chrome :: val LivePageState.canGoBack : Boolean
+browser-chrome :: val LivePageState.canGoForward : Boolean
+browser-chrome :: val LivePageState.isLoading : Boolean
+browser-chrome :: val LivePageState.progress : Float
+browser-chrome :: val LivePageState.title : String?
+browser-chrome :: val LivePageState.url : String?
+browser-chrome :: val LocalChromePalette
+browser-chrome :: val NeonChromeWiring.adapter
+browser-chrome :: val NeonChromeWiring.downloads
+browser-chrome :: val NeonChromeWiring.gateway : BrowserEngineGateway get()
+browser-chrome :: val NeonChromeWiring.router
+browser-chrome :: val NeonUserAgent.desktop : String
+browser-chrome :: val NeonUserAgent.mobile : String?
+browser-chrome :: val PermissionRequest.id : String
+browser-chrome :: val PermissionRequest.originHost : String
+browser-chrome :: val PermissionRequest.resources : Set<WebPermissionResource>
+browser-chrome :: val SnapshotComposer.SOLO_TAB_ID
+browser-chrome :: val Suggestion.actionUrl : String?
+browser-chrome :: val Suggestion.kind : SuggestionKind
+browser-chrome :: val Suggestion.primary : String
+browser-chrome :: val Suggestion.secondary : String?
+browser-chrome :: val Suggestion.tabId : String?
+browser-chrome :: val TabCard.canGoBack : Boolean
+browser-chrome :: val TabCard.canGoForward : Boolean
+browser-chrome :: val TabCard.host : String
+browser-chrome :: val TabCard.id : String
+browser-chrome :: val TabCard.isLoading : Boolean
+browser-chrome :: val TabCard.isSecure : Boolean
+browser-chrome :: val TabCard.progress : Float
+browser-chrome :: val TabCard.title : String
+browser-chrome :: val TabCard.url : String
+browser-chrome :: val TabIdentity.id : String
+browser-chrome :: val TabIdentity.title : String?
+browser-chrome :: val TabIdentity.url : String?
+browser-chrome :: val TabSet.activeTabId : String?
+browser-chrome :: val TabSet.tabs : List<TabIdentity>
+browser-chrome :: val UnavailableUserscriptRegistry.scripts : StateFlow<List<Userscript>>
+browser-chrome :: val Userscript.enabled : Boolean
+browser-chrome :: val Userscript.id : String
+browser-chrome :: val Userscript.matches : String
+browser-chrome :: val Userscript.name : String
+browser-chrome :: val UserscriptRegistry.scripts : StateFlow<List<Userscript>>
+browser-chrome :: var ApexChromeWiring.onActiveWebViewChanged : ((WebView) -> Unit)?
+browser-chrome :: var ChromeDownloadManager.onEnqueued : ((fileName: String, url: String, dmId: Long) -> Unit)?
+browser-chrome :: var DialogRequestRouter.agentDecider : ((JsDialogRequest, suspend (JsDialogChoice, String?) -> Unit) -> Boolean)?
+browser-chrome :: var JsDialogBookkeeping.agentDecider : ((JsDialogRequest, suspend (JsDialogChoice, String?) -> Unit) -> Boolean)?
+browser-chrome :: var NeonChromeWiring.agentDecider : ((JsDialogRequest, suspend (JsDialogChoice, String?) -> Unit) -> Boolean)?
+browser-chrome :: var NeonChromeWiring.onWebViewRebound : ((WebView) -> Unit)?

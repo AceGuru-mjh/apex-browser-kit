@@ -1,0 +1,51 @@
+name: OSV Vulnerability Scan
+
+# CVE scanning for declared and (via dependency-submission) transitive
+# dependencies. Uses Google's official reusable workflows — do not hand-roll
+# the scanner step; the reusable workflows handle the PR-vs-base diffing and the
+# Security-tab upload correctly.
+#
+# Two events on purpose:
+#   • pull_request — reports only NEW vulnerabilities vs the base branch, so a
+#     long-lived pre-existing advisory does not block every PR forever.
+#   • schedule     — a weekly full sweep catches advisories published after a
+#     PR was merged.
+#
+# Caveat worth knowing: OSV-Scanner's reach depends on resolvable manifests.
+# This repo has no dependency lockfile or verification metadata yet, so it sees
+# the Gradle coordinates (good enough to catch a bad direct dependency) but is
+# weaker for deep transitive graphs than a locked build would be. Adding
+# `gradle/verification-metadata.xml` is the follow-up that closes that gap.
+#
+# rebase 修复（2026-10-07）：
+#   1. 顶层 permissions 对齐官方示例（actions:read / contents:read /
+#      security-events:write）—— 此前只有 contents:read，可复用工作流内部
+#      的基线下载与 SARIF 上传没有授权面；
+#   2. uses 钉到完整提交 SHA（v2.6.0 = a345acff…）—— 满足 supply-chain 门禁
+#      「浮动标签 → 提交 SHA」的固定要求。
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 12 * * 1"   # weekly, Mondays 12:30 UTC
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan-pr:
+    name: Scan (new vulnerabilities only)
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc"
+
+  scan-scheduled:
+    name: Scan (full, weekly)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc"

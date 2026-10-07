@@ -1,0 +1,90 @@
+name: Notify host (Android-Guru-Agent)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# browser-kit push main → 通知主仓库自动同步（v1.4.9 同步链路的事件通道）
+#
+# 链路全景（与主仓库 sync-browser-kit.yml 配套）：
+#   本仓库 push main
+#     → 本 workflow 等待本提交的 CI（Build & Test + Consumer Check）完成
+#     → 全绿：repository_dispatch 主仓库（event: browser-kit-updated）
+#       → 主仓库 sync-browser-kit bump gradle/browser-kit.lock 并 push main
+#       → 主仓库 release 流水线自动构建发布（新 browser-kit 随 APK 交付）
+#     → 有失败：不通知（主仓同步亦会拒绝红提交 —— 双侧一致 fail closed）
+#
+# 事件通道提供即时性；主仓库另有每 30 分钟的 cron 轮询兜底（防丢事件）。
+# HOST_SYNC_TOKEN：对 Android-Guru-Agent 有 repo 权限的 PAT（加密存放于
+# 本仓库 Actions secrets，仅 main 分支的 workflow 运行可解密）。
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: notify-host
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: repository_dispatch host sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Wait for CI on this commit (up to ~30 min)
+        id: waitci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 90); do
+            SUMMARY=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
+              --jq '{total: (.total_count // 0),
+                     pending: ([.check_runs[]? | select(.status != "completed")] | length),
+                     failed: ([.check_runs[]? | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral")] | length)}')
+            TOTAL=$(echo "$SUMMARY" | jq -r .total)
+            PENDING=$(echo "$SUMMARY" | jq -r .pending)
+            FAILED=$(echo "$SUMMARY" | jq -r .failed)
+            echo "[poll $i] check-runs: total=$TOTAL pending=$PENDING failed=$FAILED"
+            if [ "$TOTAL" != "0" ] && [ "$PENDING" = "0" ]; then
+              if [ "$FAILED" != "0" ]; then
+                echo "::notice::本提交 CI 有 $FAILED 项失败 —— 不通知主仓同步（修复后下一提交会再触发）"
+                echo "ci=failed" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "✅ CI 全绿 —— 通知主仓库同步"
+              echo "ci=green" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 20
+          done
+          # 超时仍发 dispatch：主仓 sync 侧会再次校验 CI 状态（双侧防御）
+          echo "::notice::等待 CI 超时（~30 分钟）—— 仍发 dispatch，主仓侧二次校验"
+          echo "ci=timeout" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger host sync (repository_dispatch)
+        if: steps.waitci.outputs.ci != 'failed'
+        env:
+          HOST_SYNC_TOKEN: ${{ secrets.HOST_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$HOST_SYNC_TOKEN" ]; then
+            echo "::error::缺少 secrets.HOST_SYNC_TOKEN（对 Android-Guru-Agent 有 repo 权限的 PAT）—— 请在仓库 Settings → Secrets 配置"
+            exit 1
+          fi
+          HTTP_CODE=$(curl -s -o /tmp/dispatch_resp.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $HOST_SYNC_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/AceGuru-mjh/Android-Guru-Agent/dispatches" \
+            -d "{\"event_type\":\"browser-kit-updated\",\"client_payload\":{\"sha\":\"$GITHUB_SHA\"}}")
+          echo "dispatch HTTP $HTTP_CODE"
+          cat /tmp/dispatch_resp.json || true
+          # 204 = 成功；409 过载可由主仓 cron 兜底；其余（401/404/422）硬失败
+          if [ "$HTTP_CODE" != "204" ] && [ "$HTTP_CODE" != "409" ]; then
+            echo "::error::repository_dispatch 失败（HTTP $HTTP_CODE）—— 主仓 30 分钟 cron 兜底会重试，但请尽快修复"
+            exit 1
+          fi
+          echo "🚀 已通知主仓库（browser-kit-updated @ $GITHUB_SHA）"

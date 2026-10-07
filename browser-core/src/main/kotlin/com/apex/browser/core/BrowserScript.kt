@@ -60,6 +60,9 @@ object BrowserScript {
           var out = [];
           var interactiveSel = ${JsLiteral.string(sel)};
           var all = document.querySelectorAll(interactiveSel);
+          // 匹配总数先记下来：触顶截断时必须让模型知道「页面里还有更多」，
+          // 否则它会把返回的这一批当成全部，据此规划动作必然踩空。
+          var total = all.length;
           for (var i=0;i<all.length;i++){
             if (out.length >= MAX) break;
             var el = all[i];
@@ -85,6 +88,10 @@ object BrowserScript {
             for (var a=0;a<el.attributes.length;a++){
               var an = el.attributes[a].name; if (keep.indexOf(an)>=0) attrs[an] = el.attributes[a].value;
             }
+            // 真实 DOM 深度（上限 20）：摘要超预算时按「可交互 > 浅层 > 有标签」决定
+            // 谁先进预算 —— 旧实现恒写 0，该字段形同虚设，文档承诺的优先级从未生效。
+            var depth = 0, p = el;
+            while ((p = p.parentElement) && depth < 20) { depth++; }
             out.push({
               tag: el.tagName,
               text: text,
@@ -93,11 +100,11 @@ object BrowserScript {
                       width: Math.round(rect.width), height: Math.round(rect.height) },
               isVisible: true,
               isInteractive: true,
-              depth: 0,
+              depth: depth,
               childCount: el.children.length
             });
           }
-          return JSON.stringify(out);
+          return JSON.stringify({ v: 1, total: total, truncated: total > out.length, elements: out });
         })();
         """.trimIndent()
     }
@@ -118,6 +125,7 @@ object BrowserScript {
           var out = [];
           // 有 accessible name 的节点：role / aria-label / 文本 任一即可
           var all = document.querySelectorAll('*');
+          var total = all.length;
           for (var i=0;i<all.length && out.length<MAX;i++){
             var el = all[i];
             var role = el.getAttribute && el.getAttribute('role');
@@ -136,18 +144,23 @@ object BrowserScript {
             var semanticKey = (role||el.tagName) + '|' + text + '|' + el.tagName;
             var ref = hash(semanticKey);
             el.setAttribute('data-apex-hash', ref);
+            var depth = 0, p = el;
+            while ((p = p.parentElement) && depth < 20) { depth++; }
             out.push({
               tag: el.tagName,
               text: text,
               attributes: { 'data-apex-hash': ref, 'role': role||'', 'aria-label': (el.getAttribute&&el.getAttribute('aria-label'))||'' },
-              rect: { x: Math.round(rect.left), y: Math.round(rect.top), width: Math.round(rect.width), height: Math.round(rect.height) },
+              // 与 snapshotJs 对齐：统一用**文档**坐标（加 scroll 偏移），
+              // 否则 A11y 路径返回的是视口坐标，物理触摸兜底会指向错误位置。
+              rect: { x: Math.round(rect.left + window.scrollX), y: Math.round(rect.top + window.scrollY),
+                      width: Math.round(rect.width), height: Math.round(rect.height) },
               isVisible: true,
               isInteractive: !!role,
-              depth: 0,
+              depth: depth,
               childCount: el.children.length
             });
           }
-          return JSON.stringify(out);
+          return JSON.stringify({ v: 1, total: total, truncated: total > out.length, elements: out });
         })();
         """.trimIndent()
 

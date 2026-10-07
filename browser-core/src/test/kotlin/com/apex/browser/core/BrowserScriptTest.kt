@@ -466,6 +466,25 @@ class BrowserScriptTest {
     }
 
     @Test
+    fun `A11Y_FALLBACK_JS 的 rect 与 snapshotJs 统一为文档坐标`() {
+        // 意图：两条快照路径若坐标系不一致（一个视口、一个文档），坐标兜底在 A11y
+        // 路径上会指向错误位置。两者都必须加上 scroll 偏移。
+        for ((name, js) in listOf(
+            "snapshotJs" to BrowserScript.snapshotJs(),
+            "A11Y_FALLBACK_JS" to BrowserScript.A11Y_FALLBACK_JS,
+        )) {
+            assertTrue(
+                "$name 的 x 应为文档坐标（加 scrollX）：$js",
+                js.contains("rect.left + window.scrollX"),
+            )
+            assertTrue(
+                "$name 的 y 应为文档坐标（加 scrollY）：$js",
+                js.contains("rect.top + window.scrollY"),
+            )
+        }
+    }
+
+    @Test
     fun `定位片段声明统一的 __apexHits 与 el`() {
         // 意图：多个注入点共用同一前置片段（refLookupJs），变量名不能各处自定义
         //（重名会静默抬高一个入口）。rebase 适配：__apexFirst 并入 el。
@@ -497,5 +516,41 @@ class BrowserScriptTest {
         )
         // ref 必须以已转义的 JS 字符串字面量出现，而不是代码块
         assertTrue(js.contains("var __apexRef = 'r_3k9f';"))
+    }
+
+    // ---- 截断诚实性 + 真实 depth：信封契约 ----
+
+    @Test
+    fun `snapshotJs 回传 total 与 truncated 而非静默截断`() {
+        // 意图：脚本按 MAX 硬上限 break，若不回传总量，模型会把这一批当成页面全部。
+        val js = BrowserScript.snapshotJs()
+        assertTrue("应先记录匹配总数", js.contains("var total = all.length;"))
+        assertTrue("应回传 total", js.contains("total: total"))
+        assertTrue("应回传 truncated", js.contains("truncated: total > out.length"))
+        assertTrue("应回传信封版本号", js.contains("v: 1"))
+        assertTrue("元素应放在 elements 键下", js.contains("elements: out"))
+    }
+
+    @Test
+    fun `A11Y_FALLBACK_JS 同样回传信封`() {
+        val js = BrowserScript.A11Y_FALLBACK_JS
+        assertTrue(js.contains("truncated: total > out.length"))
+        assertTrue(js.contains("elements: out"))
+    }
+
+    @Test
+    fun `两条快照路径都计算真实 DOM 深度而非恒 0`() {
+        // 意图：摘要超预算时按「可交互 > 浅层 > 有标签」决定谁先进预算，
+        // 该优先级依赖 depth；旧实现恒写 0，使文档承诺的优先级从未生效。
+        for ((name, js) in listOf(
+            "snapshotJs" to BrowserScript.snapshotJs(),
+            "A11Y_FALLBACK_JS" to BrowserScript.A11Y_FALLBACK_JS,
+        )) {
+            // 断言 parentElement 本身而非 `el.parentElement`：JS 里的遍历变量名是
+            // 局部实现细节，写死变量名会让一次无害改名变成一次假失败。
+            assertTrue("$name 应遍历父链计算 depth", js.contains("parentElement"))
+            assertTrue("$name 应为 depth 设上限避免深 DOM 拖慢脚本", js.contains("depth < 20"))
+            assertFalse("$name 不得把 depth 写死 0", js.contains("depth: 0,"))
+        }
     }
 }

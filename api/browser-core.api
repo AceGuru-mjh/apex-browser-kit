@@ -1,0 +1,86 @@
+# Public API surface of :browser-core - COMMITTED BASELINE.
+# Regenerate only with `python scripts/check_api_surface.py --update-baseline` and review the diff.
+browser-core :: class BrowserScript.ExtractMode(val value: String)
+browser-core :: class CircuitBreaker(private val failureThreshold: Int = 5, private val resetTimeoutMs: Long = 30_000,)
+browser-core :: class CircuitBreaker.State
+browser-core :: class CircuitOpenException(message: String) : Exception(message)
+browser-core :: class DomElement(val bid: Int, val ref: String =, val tag: String, val text: String =, val label: String =, val attributes: Map<String, String> = emptyMap(), val rect: Rect = Rect(0, 0, 0, 0), val isVisible: Boolean = true, val isInteractive: Boolean = false, val depth: Int = 0, val childCount: Int = 0,)
+browser-core :: class DomParser.SnapshotStrategy
+browser-core :: class ElementNotFoundException(message: String) : Exception(message)
+browser-core :: class PageClassifier.PageTypeInfo(val type: String, val hint: String, val signals: Map<String, Int>,)
+browser-core :: class PageSnapshot(val url: String, val title: String, val scrollY: Int, val scrollHeight: Int, val viewportHeight: Int, val interactiveCount: Int, val domSummary: String, val interactiveElements: List<DomElement>, val truncated: Boolean = false, val totalCandidateCount: Int = 0,)
+browser-core :: class Rect(val x: Int, val y: Int, val width: Int, val height: Int)
+browser-core :: class RetryPolicy(val maxRetries: Int = 3, val initialDelayMs: Long = 500, val backoffMultiplier: Double = 2.0, val maxDelayMs: Long = 5000, val retryableExceptions: Set<Class<out Throwable>> = setOf(ElementNotFoundException::class.java, java.util.concurrent.TimeoutException::class.java, WebViewNotRespondingException::class.java,),)
+browser-core :: class WebViewNotRespondingException(message: String) : Exception(message)
+browser-core :: fun BrowserScript.elementAtPointJs(x: Float, y: Float, targetRef: String): String
+browser-core :: fun BrowserScript.extractContentJs(mode: String): String
+browser-core :: fun BrowserScript.highlightJs(ref: String, color: String =): String
+browser-core :: fun BrowserScript.hoverJs(ref: String): String
+browser-core :: fun BrowserScript.inputTextJs(ref: String, text: String): String
+browser-core :: fun BrowserScript.locateByFuzzyJs(tag: String, textContains: String, newRef: String): String
+browser-core :: fun BrowserScript.networkLogJs(limit: Int): String
+browser-core :: fun BrowserScript.pressKeyJs(key: String): String
+browser-core :: fun BrowserScript.rectByRefJs(ref: String): String
+browser-core :: fun BrowserScript.scrollByJs(deltaY: Int): String
+browser-core :: fun BrowserScript.scrollIntoViewAndRectJs(ref: String): String
+browser-core :: fun BrowserScript.selectJs(ref: String, value: String, byText: Boolean): String
+browser-core :: fun BrowserScript.selectorPresentJs(selector: String): String
+browser-core :: fun BrowserScript.setNativeValueJs(ref: String, text: String, append: Boolean): String
+browser-core :: fun BrowserScript.snapshotJs(strategy: DomParser.SnapshotStrategy = DomParser.SnapshotStrategy.INTERACTIVE_ONLY): String
+browser-core :: fun BrowserScript.textContainsJs(text: String): String
+browser-core :: fun CircuitBreaker.acquire()
+browser-core :: fun CircuitBreaker.onFailure()
+browser-core :: fun CircuitBreaker.onSuccess()
+browser-core :: fun DomParser.parse(rawJson: String, url: String, title: String, scrollY: Int, scrollHeight: Int, viewportHeight: Int, tokenBudget: Int = 1600, strategy: SnapshotStrategy = SnapshotStrategy.INTERACTIVE_ONLY,): PageSnapshot
+browser-core :: fun JsLiteral.string(value: String): String
+browser-core :: fun PageClassifier.classify(signals: Map<String, Int>): PageTypeInfo
+browser-core :: fun PageClassifier.fromJson(rawJson: String): PageTypeInfo
+browser-core :: fun PageClassifier.parseSignals(rawJson: String): Map<String, Int>
+browser-core :: fun withRetry<T>(policy: RetryPolicy, breaker: CircuitBreaker, block: suspend () -> T,): T
+browser-core :: object BrowserScript
+browser-core :: object DomParser
+browser-core :: object JsLiteral
+browser-core :: object PageClassifier
+browser-core :: val BrowserScript.A11Y_FALLBACK_JS : String
+browser-core :: val BrowserScript.CURRENT_URL_JS : String
+browser-core :: val BrowserScript.ExtractMode.value : String
+browser-core :: val BrowserScript.MAX_NETWORK_LOG_ENTRIES : Int
+browser-core :: val BrowserScript.MAX_SCROLL_PX : Int
+browser-core :: val BrowserScript.NETWORK_MONITOR_JS : String
+browser-core :: val BrowserScript.PAGE_TYPE_JS : String
+browser-core :: val BrowserScript.POST_ACTION_PROBE_JS : String
+browser-core :: val BrowserScript.SNAPSHOT_MAX_ELEMENTS : Int
+browser-core :: val CircuitBreaker.currentState : State get()
+browser-core :: val DomElement.attributes : Map<String
+browser-core :: val DomElement.bid : Int
+browser-core :: val DomElement.childCount : Int
+browser-core :: val DomElement.depth : Int
+browser-core :: val DomElement.isInteractive : Boolean
+browser-core :: val DomElement.isVisible : Boolean
+browser-core :: val DomElement.label : String
+browser-core :: val DomElement.rect : Rect
+browser-core :: val DomElement.ref : String
+browser-core :: val DomElement.tag : String
+browser-core :: val DomElement.text : String
+browser-core :: val PageClassifier.PageTypeInfo.hint : String
+browser-core :: val PageClassifier.PageTypeInfo.signals : Map<String
+browser-core :: val PageClassifier.PageTypeInfo.type : String
+browser-core :: val PageSnapshot.domSummary : String
+browser-core :: val PageSnapshot.interactiveCount : Int
+browser-core :: val PageSnapshot.interactiveElements : List<DomElement>
+browser-core :: val PageSnapshot.scrollHeight : Int
+browser-core :: val PageSnapshot.scrollY : Int
+browser-core :: val PageSnapshot.title : String
+browser-core :: val PageSnapshot.totalCandidateCount : Int
+browser-core :: val PageSnapshot.truncated : Boolean
+browser-core :: val PageSnapshot.url : String
+browser-core :: val PageSnapshot.viewportHeight : Int
+browser-core :: val Rect.height : Int
+browser-core :: val Rect.width : Int
+browser-core :: val Rect.x : Int
+browser-core :: val Rect.y : Int
+browser-core :: val RetryPolicy.backoffMultiplier : Double
+browser-core :: val RetryPolicy.initialDelayMs : Long
+browser-core :: val RetryPolicy.maxDelayMs : Long
+browser-core :: val RetryPolicy.maxRetries : Int
+browser-core :: val RetryPolicy.retryableExceptions : Set<Class<out Throwable>>

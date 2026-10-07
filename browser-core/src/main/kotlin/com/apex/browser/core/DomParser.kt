@@ -3,16 +3,21 @@ package com.apex.browser.core
 import kotlinx.serialization.json.Json
 
 /**
- * 把浏览器注入的 JS 抓取结果（[RawDomElement] 的 JSON 数组）解析成 Agent 友好的 [PageSnapshot]。
+ * 把浏览器注入的 JS 抓取结果解析成 Agent 友好的 [PageSnapshot]。
+ *
+ * 接受两种回传形态（[BrowserScript.snapshotJs] 现产后者，[RawSnapshotEnvelope]）：
+ * - `{v, total, truncated, elements}` —— 附带总数与截断标记，用于如实告知模型
+ *   「页面里还有更多元素」；
+ * - 裸元素数组 —— 旧版注入脚本，以及任何自行构造 raw JSON 的消费方（仍受支持）。
  *
  * 设计要点（对标并超越 Operit）：
- * 1. 为每个可交互元素解析出语义哈希稳定 [DomElement.ref]（来自 JS 注入的 data-apex-hash），
- *    Agent 用 ref 操作，抗 SPA 局部刷新错位；[DomElement.bid] 仅作展示编号。
- * 2. [buildSummary] 生成面向 LLM 的紧凑文本树，按 token 预算裁剪——优先保留可交互元素，
- *    深层非交互容器折叠为 "[容器 N 子]"，避免把整页 HTML 灌进 prompt。
+ * 1. 每个元素取 JS 注入的语义哈希 `data-apex-hash` 作为 [DomElement.ref]。**缺失时留空
+ *    而非编造** —— ref 是定位的唯一主键，编造出的 ref 永远解析不到，会白耗重试并打开熔断器。
+ * 2. [buildSummary] 生成面向 LLM 的紧凑文本树，按 token 预算裁剪，预算优先给
+ *    「可交互 > 浅层 > 有标签」的元素，输出顺序仍按 [DomElement.bid] 保持页面阅读顺序。
  * 3. 保留 [DomElement.rect] / [DomElement.isVisible]，使工具既能 DOM 级点击，也能物理触摸兜底。
  *
- * 纯 Kotlin（无 Android 依赖），可在 JVM 单测中验证 DOM 摘要压缩行为。
+ * 纯 Kotlin（无 Android 依赖），可在 JVM 单测中验证 DOM 摘要压缩与截断上报行为。
  */
 object DomParser {
 
@@ -61,8 +66,14 @@ object DomParser {
         tokenBudget: Int = 1600,
         strategy: SnapshotStrategy = SnapshotStrategy.INTERACTIVE_ONLY,
     ): PageSnapshot {
-        val raw = runCatching { json.decodeFromString<List<RawDomElement>>(rawJson) }
-            .getOrDefault(emptyList())
+        val envelope = runCatching {
+            json.decodeFromString<RawSnapshotEnvelope>(rawJson)
+        }.getOrNull()
+        // 同时接受两种形态：新版注入脚本回传 {elements,total,truncated} 信封；
+        // 旧版（以及任何自行构造 raw JSON 的消费方）回传裸数组。
+        val raw: List<RawDomElement> = envelope?.elements
+            ?: runCatching { json.decodeFromString<List<RawDomElement>>(rawJson) }
+                .getOrDefault(emptyList())
 
         val interactive = mutableListOf<DomElement>()
         var bid = 0
@@ -73,7 +84,11 @@ object DomParser {
             if (strategy == SnapshotStrategy.INTERACTIVE_ONLY &&
                 (r.text ?: "").isBlank() && !hasMeaningfulAttr(r)) continue
             bid++
-            val ref = r.attributes["data-apex-hash"] ?: "r$bid"
+            // ref 是**唯一**的定位主键：click/input/select 一律经 data-apex-hash 反查元素。
+            // 缺失时不得编造 —— 旧实现回退成 "r$bid"，形似合法语义哈希却永远查不到，
+            // 于是白耗 3 次重试并**打开熔断器**，一个坏元素锁死整段会话。
+            // 无 ref 的元素对 Agent 不可操作，据实留空并在摘要中说明。
+            val ref = r.attributes["data-apex-hash"]?.takeIf { it.isNotBlank() } ?: ""
             interactive += DomElement(
                 bid = bid,
                 ref = ref,
@@ -89,7 +104,12 @@ object DomParser {
             )
         }
 
-        val summary = buildSummary(interactive, tokenBudget)
+        // 截断诚实性：注入脚本按 SNAPSHOT_MAX_ELEMENTS 硬上限截断。若不告知，
+        // 模型会把「看到的 50 个」当成「页面全部」，据此规划动作必然踩空。
+        val truncated = envelope?.truncated ?: false
+        val totalCandidates = envelope?.total ?: raw.size
+
+        val summary = buildSummary(interactive, tokenBudget, truncated, totalCandidates)
         return PageSnapshot(
             url = url,
             title = title,
@@ -99,6 +119,8 @@ object DomParser {
             interactiveCount = interactive.size,
             domSummary = summary,
             interactiveElements = interactive,
+            truncated = truncated,
+            totalCandidateCount = totalCandidates,
         )
     }
 
@@ -152,26 +174,55 @@ object DomParser {
 
     /**
      * 生成紧凑文本树。策略：
-     * - 可交互元素全部列出（带 bid）。
-     * - 若总长度超预算，优先裁剪深层（depth 大）且文本信息量低的元素，改输出 "[折叠 N 项]"。
+     * - 预算内优先保留**可操作**元素：可交互 > 浅层（页面主控件常在浅层）> 有可读标签；
+     *   同优先级按文档顺序（[DomElement.bid]）稳定排序。
+     * - 输出顺序仍按 [DomElement.bid]，避免为省 token 而打乱页面的自然阅读顺序。
+     * - 超预算被折叠、或因注入脚本硬上限而未进入快照的元素，据实计数告知模型。
+     *
+     * 修复说明：KDoc 一直声称「优先裁剪深层且文本信息量低的元素」，但实现只是按
+     * 顺序截断 —— [DomElement.depth] 从未被使用，且注入脚本恒把 depth 写死 0。
+     * 结果是超预算时被丢掉的往往是页面末尾的次要控件，而顶部的导航/搜索框等
+     * 关键控件反而可能因位置靠后而消失。现两边都补上：脚本计算真实 depth，
+     * 此处按优先级决定谁进预算。
      */
-    private fun buildSummary(elements: List<DomElement>, tokenBudget: Int): String {
+    private fun buildSummary(
+        elements: List<DomElement>,
+        tokenBudget: Int,
+        truncatedByScript: Boolean,
+        totalCandidates: Int,
+    ): String {
         val sb = StringBuilder()
-        sb.appendLine("⊕ 页面可交互元素（共 ${elements.size} 个，括号内为 ref）：")
-        val lines = elements.map { e ->
-            val rectHint = if (!e.isVisible) " (不可见)" else ""
-            "  [${e.ref}] ${e.label}$rectHint"
+        val unaddressable = elements.count { it.ref.isEmpty() }
+        sb.append("⊕ 页面可交互元素（共 ${elements.size} 个")
+        if (truncatedByScript) {
+            sb.append("；⚠ 页面实际匹配 $totalCandidates 个，已达单次抓取上限，仅返回前一部分")
         }
+        if (unaddressable > 0) {
+            sb.append("；其中 $unaddressable 个无可用 ref，仅供参考不可点击")
+        }
+        sb.appendLine("）：")
+
+        val ranked = elements.sortedWith(
+            compareByDescending<DomElement> { it.isInteractive }
+                .thenBy { it.depth }
+                .thenByDescending { it.label.isNotBlank() }
+                .thenBy { it.bid },
+        )
+        // 先按优先级选出预算内可容纳的集合，再按 bid 渲染。
+        val admitted = HashSet<Int>()
         var total = sb.length
-        var hidden = 0
-        for (line in lines) {
-            if (total + line.length + 1 > tokenBudget) {
-                hidden++
-                continue
+        for (e in ranked) {
+            val cost = lineOf(e).length + 1
+            if (total + cost <= tokenBudget) {
+                admitted += e.bid
+                total += cost
             }
-            sb.appendLine(line)
-            total += line.length + 1
         }
+        val hidden = elements.size - admitted.size
+        for (e in elements) {
+            if (e.bid in admitted) sb.appendLine(lineOf(e))
+        }
+
         if (hidden > 0) {
             // 意图：这是直接进 prompt 的模型可见文案，绝不能让模型去调用不存在的工具。
             // 旧实现写「用 browser_dump 查看全部」，而浏览器工具集里并无 browser_dump
@@ -180,6 +231,21 @@ object DomParser {
             sb.appendLine("  …折叠 $hidden 个低优先级元素（完整列表见 interactiveElements，可调大 token_budget 重抓）")
         }
         return sb.toString().trimEnd()
+    }
+
+    /**
+     * 单行渲染。
+     *
+     * 有 [DomElement.ref] 时以 ref 为定位主键（模型据此回传操作）；无 ref 时退化为
+     * `bid` 并标注不可操作，避免模型把展示序号误当作可用的 ref 回传。
+     */
+    private fun lineOf(e: DomElement): String {
+        val rectHint = if (!e.isVisible) " (不可见)" else ""
+        return if (e.ref.isEmpty()) {
+            "  [${e.bid}·不可操作] ${e.label}$rectHint"
+        } else {
+            "  [${e.ref}] ${e.label}$rectHint"
+        }
     }
 
     private val KEEP_ATTR = setOf(

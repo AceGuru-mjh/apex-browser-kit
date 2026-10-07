@@ -51,6 +51,15 @@ Embedded WebView automation engine with Compose chrome UI — 从
 > `browser_navigate(wait_for=…)` 的 `selectorFound` **永远为 false**。
 > 已由同步的 `BrowserScript.selectorPresentJs` + Kotlin 侧轮询取代。
 
+## 快照契约（v1.0.1）
+
+| 约定 | 说明 |
+|---|---|
+| **ref 绝不编造** | `ref` 是 click / input / select 唯一的定位主键，全部经 `data-apex-hash` 反查。缺失时 `ref` 留空并在摘要里标注「不可操作」，而不是回退成 `r1`/`r2` 这类永远解析不到的伪 ref（旧行为会白耗 3 次重试并**打开熔断器**）。 |
+| **截断如实上报** | 注入脚本按 `SNAPSHOT_MAX_ELEMENTS` 硬上限截断，现回传 `{v,total,truncated,elements}` 信封；摘要会写明「页面实际匹配 N 个，已达上限」。不告知的话模型会把这一批当成全部。`PageSnapshot.truncated` / `totalCandidateCount` 同步可供程序判断。`DomParser.parse` 仍兼容旧的裸数组形态。 |
+| **摘要优先级** | 超 token 预算时按「可交互 > 浅层 > 有标签」决定谁进预算（依赖脚本计算的真实 `depth`，上限 20），但**输出顺序**仍按 `bid` 保持页面自然阅读顺序。 |
+| **坐标系统一** | 两条快照路径（`snapshotJs` 与 A11y 降级源）均返回**文档**坐标（加 scroll 偏移），避免物理触摸兜底在 A11y 路径上指向错误位置。 |
+
 ## 兼容矩阵（F3：Compose Compiler 版本必须 ≤ 宿主）
 
 | 依赖 | 版本 |
@@ -81,9 +90,9 @@ if (file("../apex-browser-kit").isDirectory) {
 
 ```kotlin
 dependencies {
-    implementation("com.apex.browser:browser-core:1.0.0")
-    implementation("com.apex.browser:browser-engine:1.0.0")
-    implementation("com.apex.browser:browser-chrome:1.0.0")
+    implementation("com.apex.browser:browser-core:1.1.0")
+    implementation("com.apex.browser:browser-engine:1.1.0")
+    implementation("com.apex.browser:browser-chrome:1.1.0")
 }
 ```
 
@@ -146,13 +155,52 @@ class HostVisualHook(private val neonBall: CyberNeonBallManager) : BrowserVisual
 
 ## CI 防线（充分利用 GitHub Actions）
 
-本仓库 `.github/workflows/ci.yml` 有两道防线：
+### `ci.yml` — 编译与下游兼容（需要 Android SDK）
 
 1. **build-test**：三模块编译 + 单测（`:browser-core:test` 独立跑，证明纯 JVM）+
    `publishToMavenLocal` 可发布性冒烟（坐标/POM 完整性）。
 2. **consumer-check**：每次 push/PR 把宿主 [Android-Guru-Agent] 检出为兄弟目录，
    经 composite build 替换后跑宿主 `:app:compileDebugKotlin` + 单测 ——
    **库一改动坏下游，立刻在本仓库 CI 看到**（F6 跨仓库漂移的解法）。
+
+### `guard-rails.yml` — 结构门禁（**秒级，无需 Android SDK**）
+
+编译能过 ≠ 该合。以下都是「便宜地写下来、贵得重新发现」的不变量：
+
+| Job | 拦什么 |
+|---|---|
+| Library Invariants | `:browser-core` 混进 `android.*` 依赖；依赖箭头反向（core → engine）；注入点绕过 `JsLiteral.string`；零转义 helper 复活；注入脚本返回 `Promise`；**WebView 沙箱被放松**（见下） |
+| Resource Integrity | 资源漏 `browser_` 前缀（AGP 只告警，撞的是**宿主** `R`）；`values` 与 `values-*` 键集/占位符不对齐 |
+| Structural Quality | God-file 体积预算；`printStackTrace()`；反射派发；括号失衡（词法感知） |
+| Supply Chain | 仓库里出现 credential 字面量（PAT/AK/PEM/`password=` 实值）；Gradle 分发包缺 `distributionSha256Sum`；wrapper JAR 被换成 stub；workflow 里 `curl \| sh`；三模块版本号分裂 / README 消费示例过期 / 兼容矩阵漂移；`api/` 基线外出现 public 删除或签名变更（纯新增放行） |
+| **Gate Self-Tests** | 每个门禁都拿**真实注入的违规**去验自己会失败 —— 只跑通过的门禁证明不了任何事 |
+| Inventory | 文件数 / 行数 / 模块清单 |
+
+### 为什么 WebView 加固要自己写门禁
+
+CodeQL 里所有 WebView 相关查询（`websettings-file-access`、
+`webview-addjavascriptinterface`、`improper-webview-certificate-validation` …）
+都属于 **`security-extended` 套件，不在默认套件**；开启该套件是**仓库设置**（PR 改不了），
+且 Kotlin 分析需要完整构建。在此之前 `check_webview_hardening.py` 是唯一在检查这些
+不变量的人 —— 它把 SSL 处理、file/content 访问、混合内容、远程调试、`addJavascriptInterface`
+全部锁成门禁。详见 [SECURITY.md](SECURITY.md)。
+
+**一条容易踩的坑**：`allowFileAccessFromFileURLs` 自 API 30 起被系统忽略，但本库
+`minSdk 26`，在 API 26~29 上它的默认值仍是 `true`。因此那行 `= false` 是**真起作用的
+安全控制，不能当废弃代码删掉** —— 门禁会拦住删除行为。
+
+`dependency-submission.yml` 另把 Gradle 解析结果喂给 GitHub 依赖图，
+使 Dependabot 能对**传递依赖**告警（消费方通过我们的坐标间接依赖它们）。
+
+### 本地复现
+
+```bash
+./test.sh          # 门禁 + 门禁自测 + Gradle 单测
+./test.sh gates    # 只跑门禁：纯 stdlib Python，不需要 JDK / Android SDK
+```
+
+门禁一律写成**可注入违规的自测**，见 `scripts/tests/`。改门禁后请连自测一起跑 ——
+正则腐化会让门禁静默变成永远绿的空壳，这是 CI 门禁最常见的失效方式。
 
 ## 留在宿主的部分
 
