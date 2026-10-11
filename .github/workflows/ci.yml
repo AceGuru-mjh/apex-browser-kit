@@ -100,7 +100,7 @@ jobs:
       - name: Checkout host app (Android-Guru-Agent)
         uses: actions/checkout@v4
         with:
-          repository: AceGuru-mjh/Android-Guru-Agent
+          repository: Ultra-Guru/Android-Guru-Agent
           path: host-app
           # 公开仓库只读 checkout，无需 PAT
 
