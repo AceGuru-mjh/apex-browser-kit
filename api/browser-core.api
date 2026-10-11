@@ -19,12 +19,15 @@ browser-core :: fun BrowserScript.highlightJs(ref: String, color: String =): Str
 browser-core :: fun BrowserScript.hoverJs(ref: String): String
 browser-core :: fun BrowserScript.inputTextJs(ref: String, text: String): String
 browser-core :: fun BrowserScript.locateByFuzzyJs(tag: String, textContains: String, newRef: String): String
+browser-core :: fun BrowserScript.locateJs(textContains: String, tag: String, limit: Int): String
+browser-core :: fun BrowserScript.networkIdleJs(): String
 browser-core :: fun BrowserScript.networkLogJs(limit: Int): String
 browser-core :: fun BrowserScript.pressKeyJs(key: String): String
 browser-core :: fun BrowserScript.rectByRefJs(ref: String): String
 browser-core :: fun BrowserScript.scrollByJs(deltaY: Int): String
 browser-core :: fun BrowserScript.scrollIntoViewAndRectJs(ref: String): String
 browser-core :: fun BrowserScript.selectJs(ref: String, value: String, byText: Boolean): String
+browser-core :: fun BrowserScript.selectorCountJs(selector: String): String
 browser-core :: fun BrowserScript.selectorPresentJs(selector: String): String
 browser-core :: fun BrowserScript.setNativeValueJs(ref: String, text: String, append: Boolean): String
 browser-core :: fun BrowserScript.snapshotJs(strategy: DomParser.SnapshotStrategy = DomParser.SnapshotStrategy.INTERACTIVE_ONLY): String
@@ -51,6 +54,7 @@ browser-core :: val BrowserScript.NETWORK_MONITOR_JS : String
 browser-core :: val BrowserScript.PAGE_TYPE_JS : String
 browser-core :: val BrowserScript.POST_ACTION_PROBE_JS : String
 browser-core :: val BrowserScript.SNAPSHOT_MAX_ELEMENTS : Int
+browser-core :: val BrowserScript.STEALTH_JS : String
 browser-core :: val CircuitBreaker.currentState : State get()
 browser-core :: val DomElement.attributes : Map<String
 browser-core :: val DomElement.bid : Int
