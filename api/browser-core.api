@@ -8,7 +8,7 @@ browser-core :: class DomElement(val bid: Int, val ref: String =, val tag: Strin
 browser-core :: class DomParser.SnapshotStrategy
 browser-core :: class ElementNotFoundException(message: String) : Exception(message)
 browser-core :: class PageClassifier.PageTypeInfo(val type: String, val hint: String, val signals: Map<String, Int>,)
-browser-core :: class PageSnapshot(val url: String, val title: String, val scrollY: Int, val scrollHeight: Int, val viewportHeight: Int, val interactiveCount: Int, val domSummary: String, val interactiveElements: List<DomElement>, val truncated: Boolean = false, val totalCandidateCount: Int = 0,)
+browser-core :: class PageSnapshot(val url: String, val title: String, val scrollY: Int, val scrollHeight: Int, val viewportHeight: Int, val interactiveCount: Int, val domSummary: String, val interactiveElements: List<DomElement>, val truncated: Boolean = false, val totalCandidateCount: Int = 0, val timestampMs: Long = 0, val dialogNotice: String? = null,)
 browser-core :: class PermanentActionException(message: String) : Exception(message)
 browser-core :: class Rect(val x: Int, val y: Int, val width: Int, val height: Int)
 browser-core :: class RetryPolicy(val maxRetries: Int = 3, val initialDelayMs: Long = 500, val backoffMultiplier: Double = 2.0, val maxDelayMs: Long = 5000, val retryableExceptions: Set<Class<out Throwable>> = setOf(ElementNotFoundException::class.java, java.util.concurrent.TimeoutException::class.java, WebViewNotRespondingException::class.java,),)
@@ -70,11 +70,13 @@ browser-core :: val DomElement.text : String
 browser-core :: val PageClassifier.PageTypeInfo.hint : String
 browser-core :: val PageClassifier.PageTypeInfo.signals : Map<String
 browser-core :: val PageClassifier.PageTypeInfo.type : String
+browser-core :: val PageSnapshot.dialogNotice : String?
 browser-core :: val PageSnapshot.domSummary : String
 browser-core :: val PageSnapshot.interactiveCount : Int
 browser-core :: val PageSnapshot.interactiveElements : List<DomElement>
 browser-core :: val PageSnapshot.scrollHeight : Int
 browser-core :: val PageSnapshot.scrollY : Int
+browser-core :: val PageSnapshot.timestampMs : Long
 browser-core :: val PageSnapshot.title : String
 browser-core :: val PageSnapshot.totalCandidateCount : Int
 browser-core :: val PageSnapshot.truncated : Boolean
