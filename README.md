@@ -91,9 +91,9 @@ if (file("../apex-browser-kit").isDirectory) {
 
 ```kotlin
 dependencies {
-    implementation("com.apex.browser:browser-core:1.2.0")
-    implementation("com.apex.browser:browser-engine:1.2.0")
-    implementation("com.apex.browser:browser-chrome:1.2.0")
+    implementation("com.apex.browser:browser-core:1.3.0")
+    implementation("com.apex.browser:browser-engine:1.3.0")
+    implementation("com.apex.browser:browser-chrome:1.3.0")
 }
 ```
 
@@ -311,6 +311,72 @@ Compose UI 层文案继续走 `res/values` + `values-en`（`browser_` 前缀强�
 版本：三模块 1.1.0 → **1.2.0**（additive API，全部为带默认值参数的尾参扩展，
 宿主源码兼容）。
 
+## v1.3.0 变更（错误语义 / 快照保真度 / 等待谓词 / 可观测性）
+
+### 错误语义拆分与重试契约兑现（:browser-core + 引擎接线）
+
+- 新增 `PermanentActionException`：操作本身不可能成功的语义错误（对非输入元素
+  `inputText` / `selectOption` 选项不匹配 / 页面侧回传非预期形态）。`withRetry`
+  对其立即上抛——**不烧退避、不计熔断**（旧实现一律抛 `ElementNotFoundException`
+  白耗 3 次退避并推动全局熔断，一个坏元素锁死整段会话）；
+- `CircuitBreaker` 的 `acquire/onSuccess/onFailure` 全部 `@Synchronized`：旧实现
+  `consecutiveFailures++` 非原子，跨线程丢计数导致熔断迟开；
+- 快照超时转译为 `java.util.concurrent.TimeoutException`（可重试集合成员）——
+  旧实现直接把 `TimeoutCancellationException` 上抛，KDoc 承诺的「快照超时视为
+  可重试，熔断保护」从未生效。转译前检查外层协程存活，不破坏结构化取消。
+
+### 快照保真度（:browser-core + 引擎接线）
+
+- **ref 同键去重**：同一 `semanticKey`（列表页同批商品卡/表格同列删除按钮）算出
+  同一 hash，撞键后定位永远命中第一个。第 2+ 次出现追加 `#n` 后缀；
+- **title 修复**：引擎 WebViewClient 此前从未覆写 `onReceivedTitle`，
+  `PageSnapshot.title` 恒为空串；`onPageStarted` 同步复位 `pageFinished`
+  （修 goBack/goForward 后的「假就绪」）；
+- **快照融合**：`PageSnapshot` 追加 `timestampMs`（生成时刻）与 `dialogNotice`
+  （JS 弹窗/SSL 拦截/权限/下载通知，**消费即清**——写入本次快照后随即清空，
+  模型不重复收到同一条）；
+- **a11y 降级源 total 口径修正**：旧 `total = querySelectorAll('*').length`
+  （纯布局节点全计入，`truncated` 几乎恒真），改为循环内语义节点计数。
+
+### 等待谓词扩展（waitForCondition 3 → 7 模式）
+
+| 模式 | 语义 |
+|---|---|
+| `element_gone` / `text_gone` | 选择器/文本从页面**消失**（弹窗、加载态收起判定） |
+| `network_idle` | 在途请求数归零（`NETWORK_MONITOR_JS` 新增 `__apexNetPending` 计数，**连续 2 次为 0** 才算 idle） |
+| `selector_count` | 命中数满足谓词：`"<选择器>>=10"` / `"<=5"` / `"==3"` / `"<选择器> 10"`（纯数字缺省 `>=`，要求与选择器间有空白，避免与 `.item2` 歧义） |
+| `url`（增强） | 改注入 `CURRENT_URL_JS` 求值：SPA pushState 即时反映到 `location.href`，native `webView.url` 只在导航提交时更新 |
+
+### 新增引擎 API（Agent 直驱路径补齐）
+
+| API | 说明 |
+|---|---|
+| `reload(timeoutMs)` | 重载 + 等待就绪（此前宿主只能裸调 `webView.reload()`） |
+| `stopLoading()` | 停止当前页加载（Agent 逃生舱） |
+| `findInPage(query)` | `findAllAsync` + FindListener 桥接，返回命中数 |
+| `engine.tracer` | 引擎内建 `BrowserTracer`（见下） |
+
+### 可观测性接线（`BrowserTracer` 从零到一）
+
+- 引擎持有公开 `tracer` 属性；关键动作（navigate/click/input/select/scroll/
+  snapshot）经 `tracedAction` 包装记录 成败/参数/耗时/会话状态/URL；
+- 系统事件入 trace：渲染进程崩溃 / SSL 拦截 / confirm 自动确认 / 下载入队；
+- `BrowserTracer.Entry` 追加 `error` 尾参（失败边界的错误摘要）；新增
+  `events: SharedFlow<Entry>` 实时事件流（replay=0，DROP_OLDEST——慢消费者丢旧值
+  不阻塞记录路径）；
+- 下载管理：DownloadManager 请求转发会话 `Cookie`（登录态后的导出/附件下载
+  不再 401）；网络监控随 `onPageFinished` 与 `STEALTH_JS` 合并注入（导航重置
+  JS 上下文后不再有监控盲区）。
+
+### 注入边界收敛（安全债清偿）
+
+`locateElements` 的内联 JS（手写转义只覆盖引号，换行 / U+2028 / 控制字符裸拼）
+迁移为 `BrowserScript.locateJs`——参数一律 `JsLiteral.string`，与全库唯一编码
+入口统一。至此 `:browser-engine` 内不再有任何手拼注入 JS。
+
+版本：三模块 1.2.0 → **1.3.0**（additive API；`PageSnapshot` / `BrowserTracer.Entry`
+构造器为带默认值的尾参扩展，宿主源码兼容）。
+
 ## 已知取舍（v1.0.0）
 
 - 逻辑层文案硬编码中文（`BrowserChromeController` 5 条 snackbar 与
@@ -321,6 +387,12 @@ Compose UI 层文案继续走 `res/values` + `values-en`（`browser_` 前缀强�
   chrome UI 层文案始终资源化（`res/values` + `values-en`，`browser_` 前缀强制）。
 - 库 manifest 不声明 `SYSTEM_ALERT_WINDOW` —— 由宿主自行声明（并非所有消费者都
   需要浮窗，F5）。
+- **v1.3.0**：引擎 `findInPage` 与 chrome 层页内查找共用 WebView 的**单槽**
+  FindListener——Agent 侧调用会替换 chrome `ChainFindListener` 的注册，chrome
+  的计数回填依赖其下次接线时重设监听器（Agent 侧计数优先的取舍）。
+- **v1.3.0**：`locateElements` 迁移到 `BrowserScript.locateJs` 后，
+  `check_js_injection.py` GATE 1 的扫描范围仍为 `BrowserScript.kt`（引擎侧注入
+  JS 已全部收敛到该文件，规则本身无需扩面）。
 
 ## 来源追溯
 
