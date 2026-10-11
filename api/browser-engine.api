@@ -10,7 +10,7 @@ browser-engine :: class BrowserEngine.ScrollResult(val scrolled: Boolean, val ne
 browser-engine :: class BrowserEngine.Tab(val id: Int, val webView: WebView, var title: String =, var url: String =, @Volatile var pageFinished: Boolean = false,)
 browser-engine :: class BrowserEngine.WaitOutcome(val matched: Boolean, val detail: String, val elapsedMs: Long)
 browser-engine :: class BrowserTracer(private val capacity: Int = 100)
-browser-engine :: class BrowserTracer.Entry(val timestamp: String, val tool: String, val params: String, val resultSummary: String, val durationMs: Long, val url: String?, val state: String,)
+browser-engine :: class BrowserTracer.Entry(val timestamp: String, val tool: String, val params: String, val resultSummary: String, val durationMs: Long, val url: String?, val state: String, val error: String? = null,)
 browser-engine :: class OverlayLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner
 browser-engine :: fun BrowserEngine.BrowserUiCallback.onStateChanged(state: BrowserSessionState, url: String?, title: String?)
 browser-engine :: fun BrowserEngine.PostActionState.toText(): String
@@ -74,7 +74,7 @@ browser-engine :: fun BrowserEngineFactory.reset()
 browser-engine :: fun BrowserTracer.clear()
 browser-engine :: fun BrowserTracer.contextSummary(maxFullSteps: Int = 3): String
 browser-engine :: fun BrowserTracer.recent(limit: Int = 20): List<Entry>
-browser-engine :: fun BrowserTracer.record(tool: String, params: String, resultSummary: String, durationMs: Long, url: String?, state: String,)
+browser-engine :: fun BrowserTracer.record(tool: String, params: String, resultSummary: String, durationMs: Long, url: String?, state: String, error: String? = null,)
 browser-engine :: fun OverlayLifecycleOwner.onCreate()
 browser-engine :: fun OverlayLifecycleOwner.onDestroy()
 browser-engine :: fun OverlayLifecycleOwner.onPause()
@@ -105,12 +105,14 @@ browser-engine :: val BrowserEngine.WaitOutcome.detail : String
 browser-engine :: val BrowserEngine.WaitOutcome.elapsedMs : Long
 browser-engine :: val BrowserEngine.WaitOutcome.matched : Boolean
 browser-engine :: val BrowserTracer.Entry.durationMs : Long
+browser-engine :: val BrowserTracer.Entry.error : String?
 browser-engine :: val BrowserTracer.Entry.params : String
 browser-engine :: val BrowserTracer.Entry.resultSummary : String
 browser-engine :: val BrowserTracer.Entry.state : String
 browser-engine :: val BrowserTracer.Entry.timestamp : String
 browser-engine :: val BrowserTracer.Entry.tool : String
 browser-engine :: val BrowserTracer.Entry.url : String?
+browser-engine :: val BrowserTracer.events : SharedFlow<Entry>
 browser-engine :: val OverlayLifecycleOwner.lifecycle : Lifecycle
 browser-engine :: val OverlayLifecycleOwner.savedStateRegistry : SavedStateRegistry
 browser-engine :: var BrowserEngine.Tab.pageFinished : Boolean
