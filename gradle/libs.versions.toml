@@ -1,11 +1,13 @@
 [versions]
-# 与宿主 Android-Guru-Agent 对齐（Kotlin 2.0.21 / AGP 8.7.3 / BOM 2024.12.01），
-# 避免下游消费时产生版本冲突（README 已写死兼容矩阵）。
-kotlin = "2.0.21"
-agp = "8.7.3"
-compose-bom = "2024.12.01"
-coroutines = "1.9.0"
-serialization = "1.7.3"
+# 与宿主 Android-Guru-Agent 对齐（PR #362 工具链矩阵：Kotlin 2.2.21 / AGP 8.13.2 /
+# Gradle 8.14 / BOM 2025.11.01）—— composite build 要求两侧 AGP 版本严格一致
+#（AgpVersionCompatibilityRule），宿主升级后本库必须同步，否则下游复合构建
+# 直接解析失败。README 兼容矩阵同步更新。
+kotlin = "2.2.21"
+agp = "8.13.2"
+compose-bom = "2025.11.01"
+coroutines = "1.10.2"
+serialization = "1.9.0"
 maven-publish = "0.30.0"
 lifecycle = "2.8.7"
 core-ktx = "1.15.0"

@@ -1,6 +1,6 @@
 # apex-browser-kit
 
-> 嵌入式 WebView 自动化引擎 + Compose chrome UI 的能力库。宿主：[Android-Guru-Agent](https://github.com/AceGuru-mjh/Android-Guru-Agent)。
+> 嵌入式 WebView 自动化引擎 + Compose chrome UI 的能力库。宿主：[Android-Guru-Agent](https://github.com/Ultra-Guru/Android-Guru-Agent)。
 
 ## 这个仓库的边界
 

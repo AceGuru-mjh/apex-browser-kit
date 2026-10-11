@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -16,11 +18,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures {
         compose = true
         // F2：强制所有资源加 browser_ 前缀，防止与宿主 R 类冲突
         resourcePrefix = "browser_"
+    }
+}
+
+// KGP 2.2：kotlinOptions DSL 已 deprecation（KGP 3.0 移除）—— 项目级 compilerOptions。
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -56,7 +64,7 @@ mavenPublishing {
     pom {
         name.set("Apex Browser Kit :: Chrome")
         description.set("Compose browser chrome UI: address pill, tab strip, find bar, download shelf, JS dialog & permission hosts, overlay window")
-        url.set("https://github.com/AceGuru-mjh/apex-browser-kit")
+        url.set("https://github.com/Ultra-Guru/apex-browser-kit")
         licenses {
             license {
                 name.set("MIT")
@@ -67,8 +75,8 @@ mavenPublishing {
             developer { id.set("AceGuru-mjh") }
         }
         scm {
-            connection.set("scm:git:git@github.com:AceGuru-mjh/apex-browser-kit.git")
-            url.set("https://github.com/AceGuru-mjh/apex-browser-kit")
+            connection.set("scm:git:git@github.com:Ultra-Guru/apex-browser-kit.git")
+            url.set("https://github.com/Ultra-Guru/apex-browser-kit")
         }
     }
 }

@@ -21,7 +21,7 @@ build if an injection point appears that bypasses it.
 ## Reporting
 
 Please report suspected vulnerabilities privately via
-[GitHub Security Advisories](https://github.com/AceGuru-mjh/apex-browser-kit/security/advisories/new)
+[GitHub Security Advisories](https://github.com/Ultra-Guru/apex-browser-kit/security/advisories/new)
 rather than opening a public issue.
 
 Include: the affected module/version, the injection point, a reproducing `ref`

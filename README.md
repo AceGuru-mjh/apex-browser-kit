@@ -1,9 +1,9 @@
 # apex-browser-kit
 
 Embedded WebView automation engine with Compose chrome UI — 从
-[Android-Guru-Agent](https://github.com/AceGuru-mjh/Android-Guru-Agent) 拆出的浏览器能力库。
+[Android-Guru-Agent](https://github.com/Ultra-Guru/Android-Guru-Agent) 拆出的浏览器能力库。
 
-[![CI](https://github.com/AceGuru-mjh/apex-browser-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/AceGuru-mjh/apex-browser-kit/actions/workflows/ci.yml)
+[![CI](https://github.com/Ultra-Guru/apex-browser-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Ultra-Guru/apex-browser-kit/actions/workflows/ci.yml)
 ![Consumer](https://img.shields.io/badge/consumer-Android--Guru--Agent-blue)
 
 ## 模块结构
@@ -64,14 +64,15 @@ Embedded WebView automation engine with Compose chrome UI — 从
 
 | 依赖 | 版本 |
 |---|---|
-| Kotlin | 2.0.21 |
-| AGP | 8.7.3 |
-| Compose BOM | 2024.12.01 |
-| Kotlin Coroutines | 1.9.0 |
-| kotlinx.serialization | 1.7.3 |
+| Kotlin | 2.2.21 |
+| AGP | 8.13.2 |
+| Gradle | 8.14 |
+| Compose BOM | 2025.11.01 |
+| Kotlin Coroutines | 1.10.2 |
+| kotlinx.serialization | 1.9.0 |
 | compileSdk / minSdk | 35 / 26 |
 
-> Requires **Kotlin 2.0.21 + Compose compiler plugin of the same version**。
+> Requires **Kotlin 2.2.21 + Compose compiler plugin of the same version**（composite build 侧 AGP 必须同为 8.13.2）。
 
 ## 消费方式（按阶段递进）
 

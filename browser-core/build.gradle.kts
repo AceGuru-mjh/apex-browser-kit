@@ -34,7 +34,7 @@ mavenPublishing {
     pom {
         name.set("Apex Browser Kit :: Core")
         description.set("Pure-Kotlin DOM model, parser and injection scripts for WebView automation (zero Android deps)")
-        url.set("https://github.com/AceGuru-mjh/apex-browser-kit")
+        url.set("https://github.com/Ultra-Guru/apex-browser-kit")
         licenses {
             license {
                 name.set("MIT")
@@ -45,8 +45,8 @@ mavenPublishing {
             developer { id.set("AceGuru-mjh") }
         }
         scm {
-            connection.set("scm:git:git@github.com:AceGuru-mjh/apex-browser-kit.git")
-            url.set("https://github.com/AceGuru-mjh/apex-browser-kit")
+            connection.set("scm:git:git@github.com:Ultra-Guru/apex-browser-kit.git")
+            url.set("https://github.com/Ultra-Guru/apex-browser-kit")
         }
     }
 }
