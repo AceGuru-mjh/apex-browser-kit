@@ -91,9 +91,9 @@ if (file("../apex-browser-kit").isDirectory) {
 
 ```kotlin
 dependencies {
-    implementation("com.apex.browser:browser-core:1.1.0")
-    implementation("com.apex.browser:browser-engine:1.1.0")
-    implementation("com.apex.browser:browser-chrome:1.1.0")
+    implementation("com.apex.browser:browser-core:1.2.0")
+    implementation("com.apex.browser:browser-engine:1.2.0")
+    implementation("com.apex.browser:browser-chrome:1.2.0")
 }
 ```
 
@@ -227,7 +227,8 @@ cron 轮询兜底（防丢事件），`gradle/browser-kit.lock` 保证宿主构�
 - `BrowserAgentTools`（browser_* 工具协议：依赖宿主 `AgentTool`/`StreamingAgentTool`）
 - `CyberNeonBallManager` / `NeonRingView`（宿主视觉装饰）
 - 宿主 DI 接线模块（Hilt）
-- `plugin-web-automation` 插件 APK（宿主插件体系分发壳，与本库无版本耦合）
+- `plugin-web-automation` 插件 APK —— 宿主已将其移除，浏览器自动化改以内置
+  `:platform:browser-agent` 模块形态集成（见宿主仓库 PR）
 
 ## v1.1.0 变更（Agent 可靠性与高级功能）
 
@@ -266,12 +267,58 @@ cron 轮询兜底（防丢事件），`gradle/browser-kit.lock` 保证宿主构�
 
 版本：三模块 1.0.0 → **1.1.0**（additive API + 默认参数扩展，宿主源码兼容）。
 
+## v1.2.0 变更（逻辑层文案注入与发布工程）
+
+### ChromeStrings 注入（已知取舍 #1 消解）
+
+chrome 层有三处用户可见文案产生于**逻辑层**而非 Compose 上下文（`stringResource`
+不可达）：`BrowserChromeController` 的 6 条 snackbar、`SuggestionsBuilder` 的
+4 条联想副标题、`ApexChromeWiring` 的 3 条 JS 弹窗按钮审计标签 —— v1.0.0 起
+硬编码中文。v1.2.0 把这 13 条收敛为 `ChromeStrings` 注入接口：
+
+- `ZhChromeStrings`（默认，`ChromeStrings.DEFAULT`）：与旧硬编码**逐字一致**，
+  不注入即行为零变化；
+- `EnglishChromeStrings`：词汇与 `values-en` 镜像同一套语感
+  （Paste and go / URL / Search / Confirm / Deny / Close …）；
+- 任意自译实现（其他语言 / 品牌语气）。
+
+接入是**带默认值的尾参**，现有调用点零改动（源码兼容）：
+
+```kotlin
+// 控制器直构（BrowserChrome 的 controller 参数同款注入点）
+val controller = BrowserChromeController(gateway, scripts, config, EnglishChromeStrings)
+
+// 接线器工厂（宿主 DI Module 里同款）
+val wiring = ApexChromeWiringFactory.get(ctx, engine, EnglishChromeStrings)
+```
+
+> `ApexChromeWiringFactory` 是进程级单例：**首次**调用的 `strings` 生效，切换
+> 实现请保证首次就传入（或测试里 `reset()`）。`SuggestionsBuilder.build` 的
+> `strings` 尾参由控制器自动透传，纯函数调用方也可独立注入。
+
+Compose UI 层文案继续走 `res/values` + `values-en`（`browser_` 前缀强制），
+两套机制各管一层：UI 层跟系统语言，逻辑层跟注入实现。契约由
+`ChromeStringsTest` 锁定（中文逐字一致 / 两实现 13 条非空 / `tabSwitchHint`
+含 host / 接口成员计数防漂移）。
+
+### 发布工程
+
+| 项 | 说明 |
+|---|---|
+| `tag-release.yml` | push main 自动读三模块 `version =`（分裂即 fail，与 `check_versions.py` RULE 1 同口径），无对应 tag 则 `git tag vX.Y.Z` 并推送（幂等：已存在跳过不报错；版本回退只跳过不强推）。tag push 不会点燃 `notify-host.yml`（其 `on:` 仅 `push.branches=[main]`，且 GITHUB_TOKEN push 本就不触发 workflow，双保险） |
+| 版本可追溯 | 此前版本只存在于 `build.gradle.kts`、从未留下 git tag；现在每个发布列车落成 `vTag`，坐标 ↔ 源码状态一一对应 |
+
+版本：三模块 1.1.0 → **1.2.0**（additive API，全部为带默认值参数的尾参扩展，
+宿主源码兼容）。
+
 ## 已知取舍（v1.0.0）
 
-- `BrowserChromeController` 的 5 条 snackbar 文案与 `SuggestionsBuilder` 的联想
-  副标题为**逻辑层字符串**（非 Compose 上下文，`stringResource` 不可达），暂保持
-  硬编码中文；chrome UI 层全部文案已资源化（`res/values` + `values-en`，
-  `browser_` 前缀强制）。
+- 逻辑层文案硬编码中文（`BrowserChromeController` 5 条 snackbar 与
+  `SuggestionsBuilder` 联想副标题，非 Compose 上下文、`stringResource` 不可达）
+  —— **v1.2.0 已消解**：连同 `ApexChromeWiring` 的 3 条 JS 弹窗审计标签共
+  13 条收敛为 `ChromeStrings` 注入接口，默认 `ZhChromeStrings` 与旧硬编码
+  逐字一致，可换 `EnglishChromeStrings` 或自译实现（见「v1.2.0 变更」）。
+  chrome UI 层文案始终资源化（`res/values` + `values-en`，`browser_` 前缀强制）。
 - 库 manifest 不声明 `SYSTEM_ALERT_WINDOW` —— 由宿主自行声明（并非所有消费者都
   需要浮窗，F5）。
 
